@@ -57,7 +57,7 @@ if you want to minimise the prediction of redundant activities/resources,
 you need to apply the probability reduction for repetitive activities/resources
 in a trace prefix by adding`--use_Prob_reduction`:
 ```
-python run_experiments.py --log='helpdesk.csv' --model="LSTM" --algo="baseline" --evaluate `--use_Prob_reduction`
+python run_experiments.py --log='helpdesk.csv' --model="LSTM" --algo="baseline" --evaluate --use_Prob_reduction
 ```
 ### Training and evaluation
 if you want to train and evaluate your model in the same experiment, you need to set the `--full_run` option instead of using `--train` and then `--evaluate` :
