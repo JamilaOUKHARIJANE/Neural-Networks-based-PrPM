@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<pnml>
+  <net id="" type="http://www.pnml.org/version-2009/grammar/pnmlcoremodel">
+    <name>
+      <text></text>
+    </name>
+    <page id="n0">
+      <place id="ent_node5">
+        <name>
+          <text>ent_node5</text>
+        </name>
+      </place>
+      <place id="source">
+        <name>
+          <text>source</text>
+        </name>
+        <initialMarking>
+          <text>1</text>
+        </initialMarking>
+      </place>
+      <place id="ent_node3">
+        <name>
+          <text>ent_node3</text>
+        </name>
+      </place>
+      <place id="ent_node0">
+        <name>
+          <text>ent_node0</text>
+        </name>
+      </place>
+      <place id="exi_node4">
+        <name>
+          <text>exi_node4</text>
+        </name>
+      </place>
+      <place id="sink">
+        <name>
+          <text>sink</text>
+        </name>
+      </place>
+      <transition id="node3">
+        <name>
+          <text>Resolve ticket</text>
+        </name>
+      </transition>
+      <transition id="node9">
+        <name>
+          <text>Take in charge ticket</text>
+        </name>
+      </transition>
+      <transition id="node2">
+        <name>
+          <text>Wait</text>
+        </name>
+      </transition>
+      <transition id="node1">
+        <name>
+          <text>Create SW anomaly</text>
+        </name>
+      </transition>
+      <transition id="node8">
+        <name>
+          <text>Assign seriousness</text>
+        </name>
+      </transition>
+      <transition id="node0">
+        <name>
+          <text>Closed</text>
+        </name>
+      </transition>
+      <arc id="2108434004864" source="ent_node0" target="node0"/>
+      <arc id="2108614541616" source="exi_node4" target="node2"/>
+      <arc id="2108614548240" source="node3" target="ent_node0"/>
+      <arc id="2108745359392" source="ent_node3" target="node3"/>
+      <arc id="2108614551216" source="node8" target="ent_node5"/>
+      <arc id="2108614541760" source="ent_node5" target="node9"/>
+      <arc id="2108614541808" source="source" target="node8"/>
+      <arc id="2108614548096" source="node0" target="sink"/>
+      <arc id="2108614544352" source="node9" target="exi_node4"/>
+      <arc id="2108614546656" source="node2" target="ent_node5"/>
+      <arc id="2108614541664" source="exi_node4" target="node1"/>
+      <arc id="2108614542576" source="node1" target="ent_node3"/>
+    </page>
+    <finalmarkings>
+      <marking>
+        <place idref="sink">
+          <text>1</text>
+        </place>
+      </marking>
+    </finalmarkings>
+  </net>
+</pnml>
