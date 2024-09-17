@@ -72,7 +72,7 @@ def evaluate_all(log_data: LogData, models_folder: str, alg: str, method_fitness
 
         print(f"fold {fold} - {eval_algorithm}")
         if alg == "beamsearch":
-            output_filename = folder_path / f'{log_data.log_name.value}_beam{str(shared.beam_size)}_fold{str(fold)}_cluster{log_data.evaluation_prefix_start}.csv' 
+            output_filename = folder_path / f'{log_data.log_name.value}_beam{str(shared.beam_size)}_fold{str(fold)}_cluster{log_data.evaluation_prefix_start}{"_probability_reduction" * shared.useProb_reduction}.csv'
 
             print('beamsearch')
             model_filename = extract_last_model_checkpoint(log_data.log_name.value, models_folder, fold, 'CF' + 'R'*resource + 'O'*outcome)
