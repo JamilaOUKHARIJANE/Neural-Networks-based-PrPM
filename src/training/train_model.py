@@ -11,13 +11,13 @@ from keras.src.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlatea
 from keras.src.layers import LSTM, Dense, Input, Dropout, BatchNormalization, GlobalMaxPooling1D, Embedding
 from keras.src.models import Model
 from keras.src.optimizers import Nadam, Adam
+from keras.src.utils import plot_model
 from keras_nlp.src.layers import TransformerEncoder, SinePositionEncoding
 from src.evaluation.prepare_data import prepare_encoded_data
 from src.commons import shared_variables as shared
 from src.commons.log_utils import LogData
 from src.commons.utils import extract_trace_sequences
 from src.training.train_common import create_checkpoints_path, plot_loss
-from tf_keras.src.utils import plot_model
 
 
 def _build_model(max_len, num_features, target_chars, target_chars_group, models_folder, resource, outcome):
@@ -36,9 +36,9 @@ def _build_model(max_len, num_features, target_chars, target_chars_group, models
 
     if models_folder == "LSTM":
         if shared.use_One_hot_encoding:
-            processed = LSTM(50, return_sequences=True, dropout=0.2)(processed)
-        else:
             processed = LSTM(50, return_sequences=True, dropout=0.2)(main_input)
+        else:
+            processed = LSTM(50, return_sequences=True, dropout=0.2)(processed)
         processed = BatchNormalization()(processed)
 
         activity_output = LSTM(50, return_sequences=False, dropout=0.2)(processed)
@@ -59,9 +59,9 @@ def _build_model(max_len, num_features, target_chars, target_chars_group, models
 
     elif models_folder == "keras_trans":
         if shared.use_One_hot_encoding:
-            processed = TransformerEncoder(intermediate_dim=64, num_heads=4)(processed)
-        else:
             processed = TransformerEncoder(intermediate_dim=64, num_heads=4)(main_input)
+        else:
+            processed = TransformerEncoder(intermediate_dim=64, num_heads=4)(processed)
         processed = GlobalMaxPooling1D()(processed)
 
         activity_output = Dense(len(target_chars), activation='softmax', name='act_output')(processed)
@@ -91,7 +91,7 @@ def _build_model(max_len, num_features, target_chars, target_chars_group, models
         model.compile(loss={'act_output': 'categorical_crossentropy', 'group_output': 'categorical_crossentropy',
                             'outcome_output': 'binary_crossentropy'}, optimizer=opt)
 
-    plot_model(model, to_file='architecture_model.png',show_shapes=True, show_layer_names=True)
+    plot_model(model, to_file='model_architecture.png',show_shapes=True, show_layer_names=True)
     return model
 
 def _train_model(model, checkpoint_name, x, y_a, y_o, y_g):
