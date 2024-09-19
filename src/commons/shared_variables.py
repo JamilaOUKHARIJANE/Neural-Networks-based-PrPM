@@ -27,16 +27,16 @@ variant_split = 0.9
 validation_split = 0.2
 
 log_list = [
-    #'sepsis_cases_1.csv',
-    #'helpdesk.csv',
+    'sepsis_cases_1.csv',
+    'helpdesk.csv',
     # 'BPIC12.csv' ,
     # 'Road_Traffic.csv',
     # 'BPIC13_I.csv',
-     #'BPIC13_CP.csv',
+     'BPIC13_CP.csv',
     # 'Synthetic.xes',
     #'Production.csv',
     #'10x20_3S.csv',
     #'10x20_3W.csv',
     '10x5_1S.csv',
-    #'50x5_1S.csv'
+    '50x5_1S.csv'
 ]
