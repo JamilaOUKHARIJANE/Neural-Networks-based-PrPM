@@ -6,9 +6,11 @@ from src.commons import shared_variables as shared
 
 
 def create_checkpoints_path(log_name, models_folder, fold, model_type):
-    models_folder += "_One_hot" * shared.use_One_hot_encoding + \
-                     "_Combined_Act_res" * shared.combined_Act_res + \
-                     "_Simple_categorical" * (not shared.use_One_hot_encoding and not shared.combined_Act_res)
+    models_folder += "_One_hot" * (shared.One_hot_encoding and not shared.use_modulator)+ \
+                     "_Combined_Act_res" * (shared.combined_Act_res and not shared.use_modulator) + \
+                     "_Multi_Enc" * (shared.use_modulator and not shared.One_hot_encoding) + \
+                     "_Multi_One_hot_Enc" * (shared.use_modulator and shared.One_hot_encoding) + \
+                     "_Simple_categorical" * (not shared.One_hot_encoding and not shared.combined_Act_res and not shared.use_modulator)
     folder_path = shared.output_folder / models_folder / str(fold) / 'models' / model_type / log_name
     if not Path.exists(folder_path):
         Path.mkdir(folder_path, parents=True)

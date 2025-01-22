@@ -1,10 +1,10 @@
 import csv
 from pathlib import Path
 import distance
-#import keras
+import keras
 import numpy as np
 import pandas as pd
-from tensorflow import keras
+from src.commons import shared_variables as shared
 from jellyfish import damerau_levenshtein_distance
 
 from src.commons.log_utils import LogData
@@ -44,7 +44,10 @@ def run_experiments(log_data: LogData, compliant_traces: pd.DataFrame, maxlen, p
             cropped_line_group = ''.join(trace_prefix[log_data.res_name_key].tolist()) if resource else ''
 
             for i in range(predict_size - prefix_size):
-                y = model.predict(model_input, verbose=0)
+                if shared.use_modulator:
+                    y = model.predict([model_input["x_act"], model_input["x_group"]], verbose=0)
+                else:
+                    y = model.predict(model_input, verbose=0)
 
                 y_char = y[0][0]
                 y_group = y[1][0]

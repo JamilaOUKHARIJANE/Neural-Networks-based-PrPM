@@ -1,6 +1,9 @@
 import glob
 import os
 from pathlib import Path
+
+from Declare4Py.ProcessModels.DeclareModel import DeclareModel
+
 from src.commons import shared_variables as shared
 from src.commons.log_utils import LogData
 
@@ -22,6 +25,13 @@ def extract_bk_filename(log_name: str,  prefix:int) -> Path:
     name = shared.pn_folder / (log_name + '_' + str(prefix) + '.bpmn')   # JH: .pnml   bpmn
     print("BK file name is:", name)
     return name
+
+def extract_Declare_bk_model(log_name: str) -> Path:
+    name = shared.declare_folder / ('BK_' + log_name + '.decl')
+    print("Declare BK file name is:", name)
+    declare_model = DeclareModel().parse_from_file(name)
+    return declare_model
+
 
 def extract_trace_sequences(log_data: LogData, trace_ids: list, resource: bool, outcome: bool) -> list:
     """

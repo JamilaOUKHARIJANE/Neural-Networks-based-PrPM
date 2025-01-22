@@ -1,11 +1,13 @@
 import time
+#from multiprocessing import Process
+
 import pm4py
 import itertools
 from pathlib import Path
 
 from src.commons.log_utils import LogData
 from src.commons import shared_variables as shared
-from src.commons.utils import extract_bk_filename, extract_last_model_checkpoint
+from src.commons.utils import extract_bk_filename, extract_last_model_checkpoint, extract_Declare_bk_model
 from src.evaluation.prepare_data import prepare_encoded_data
 from src.evaluation.inference_algorithms import beamsearch_cf, baseline_cf
 from pm4py.algo.simulation.playout.petri_net import algorithm
@@ -21,7 +23,7 @@ def evaluate_all(log_data: LogData, models_folder: str, alg: str, method_fitness
         = prepare_encoded_data(log_data,resource)
 
     bk_filename = extract_bk_filename(log_data.log_name.value, log_data.evaluation_prefix_start)
-    
+
     if (method_fitness == "conformance_diagnostics_alignments_prefix"):
         if 'bpmn' in str(bk_filename):
             bpmn = pm4py.read_bpmn(str(bk_filename))
@@ -59,10 +61,38 @@ def evaluate_all(log_data: LogData, models_folder: str, alg: str, method_fitness
           + " out of " + str(len(log_data.evaluation_trace_ids)))
     print('Elapsed time:', time.time() - start_time)
 
-    models_folder += "_One_hot" * shared.use_One_hot_encoding + \
-                     "_Combined_Act_res" * shared.combined_Act_res + \
-                     "_Simple_categorical" * (not shared.use_One_hot_encoding and not shared.combined_Act_res)
-    for fold in range(shared.folds):
+    models_folder += "_One_hot" * (shared.One_hot_encoding and not shared.use_modulator) + \
+                     "_Combined_Act_res" * (shared.combined_Act_res and not shared.use_modulator) + \
+                     "_Multi_Enc" * (shared.use_modulator and not shared.One_hot_encoding) + \
+                     "_Multi_One_hot_Enc" * (shared.use_modulator and shared.One_hot_encoding) + \
+                     "_Simple_categorical" * (not shared.One_hot_encoding and not shared.combined_Act_res and not shared.use_modulator)
+
+    # extract declare model
+    bk_model = None
+    if shared.declare_BK:
+        bk_model = extract_Declare_bk_model(log_data.log_name.value)
+
+    '''def run_experiment(evaluation_prefix_start):
+        log_data.evaluation_prefix_start = evaluation_prefix_start
+        # Construct the output filename
+        output_filename = folder_path / (
+            f'{log_data.log_name.value}_beam{str(shared.beam_size)}_fold{str(fold)}_cluster{evaluation_prefix_start}'
+            f'{"_probability_reduction" * shared.useProb_reduction}{(shared.version + "_BK") * shared.declare_BK}.csv'
+        )
+        print('beamsearch')
+        # Extract the model filename
+        model_filename = extract_last_model_checkpoint(
+            log_data.log_name.value, models_folder, fold,
+            'CF' + 'R' * resource + 'O' * outcome
+        )
+        # Run the beam search experiment
+        beamsearch_cf.run_experiments(
+            log_data, compliant_traces, maxlen, predict_size, act_to_int,
+            target_act_to_int, target_int_to_act, res_to_int, target_res_to_int,
+            target_int_to_res, model_filename, output_filename, bk_filename,
+            method_fitness, resource, outcome, weight, bk_model
+        )'''
+    for fold in range(1):#shared.folds):
         eval_algorithm = alg + "_cf" + "r"*resource + "t"*timestamp + "o"*outcome
         start_time = time.time()
 
@@ -72,13 +102,24 @@ def evaluate_all(log_data: LogData, models_folder: str, alg: str, method_fitness
 
         print(f"fold {fold} - {eval_algorithm}")
         if alg == "beamsearch":
-            output_filename = folder_path / f'{log_data.log_name.value}_beam{str(shared.beam_size)}_fold{str(fold)}_cluster{log_data.evaluation_prefix_start}{"_probability_reduction" * shared.useProb_reduction}.csv'
+            '''# Start parallel processes for evaluation_prefix_start + 1, +2, and +3
+            processes = []
+            for i in range(1, 4):
+                evaluation_prefix_start = log_data.evaluation_prefix_start + i
+                p = Process(target=run_experiment, args=(evaluation_prefix_start,))
+                processes.append(p)
+                p.start()
+            for p in processes:
+                p.join()'''
+
+            output_filename = folder_path / (f'{log_data.log_name.value}_beam{str(shared.beam_size)}_fold{str(fold)}_cluster{log_data.evaluation_prefix_start}'
+                                             f'{"_probability_reduction" * shared.useProb_reduction}{(shared.version+"_BK")* shared.declare_BK}.csv')
 
             print('beamsearch')
             model_filename = extract_last_model_checkpoint(log_data.log_name.value, models_folder, fold, 'CF' + 'R'*resource + 'O'*outcome)
             beamsearch_cf.run_experiments(log_data, compliant_traces, maxlen, predict_size, act_to_int,
                                             target_act_to_int, target_int_to_act, res_to_int, target_res_to_int,
-                                            target_int_to_res, model_filename, output_filename, bk_filename, method_fitness, resource, outcome, weight)
+                                            target_int_to_res, model_filename, output_filename, bk_filename, method_fitness, resource, outcome, weight, bk_model)
         elif alg=="baseline":
             output_filename = folder_path / f'{log_data.log_name.value}_{str(alg)}_fold{str(fold)}_cluster{log_data.evaluation_prefix_start}.csv' 
 

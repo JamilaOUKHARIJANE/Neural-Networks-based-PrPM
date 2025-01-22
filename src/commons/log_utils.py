@@ -14,16 +14,10 @@ class LogName(Enum):
     SEPSIS1 = 'sepsis_cases_1'
     UBE = "Synthetic"
     HELPDESK = 'helpdesk'
-    BPIC12 = "BPIC12"
-    BPIC13I = "BPIC13_I"
-    BPIC13CP = "BPIC13_CP"
-    ROAD = "Road_Traffic"
-    PRODUCTION = 'Production'
-    a10r20w3 = '10x20_3W'
-    a10r20s3 = '10x20_3S'
-    a10r5s1 = '10x5_1S'
-    a50r5s1 = '50x5_1S'
-    a5r5s1 = '5x5_1S'
+    BPIC11 = "BPI2011"
+    BPIC13 = "BPI2013"
+    BPIC12 = "BPI2012"
+    BPIC17 = "BPI2017"
 
 class LogExt(Enum):
     CSV = '.csv'
@@ -69,10 +63,17 @@ class LogData:
                 self.log_ext = LogExt.XES_GZ
 
             self._set_log_keys_and_ths()
-            print(str(log_path))
-            self.log = pm4py.read_xes(str(log_path))[
-                [self.case_name_key, self.act_name_key, self.res_name_key, self.timestamp_key]
-            ]
+            if shared.use_train_test_logs:
+                train_log = pm4py.read_xes(str(log_path).replace(".xes", "_train.xes"))[
+                    [self.case_name_key, self.act_name_key, self.res_name_key, self.timestamp_key]]
+                test_log = pm4py.read_xes(str(log_path).replace(".xes", "_test.xes"))[
+                    [self.case_name_key, self.act_name_key, self.res_name_key, self.timestamp_key]]
+                test_log = test_log.dropna(subset=[self.res_name_key])
+                train_log = train_log.dropna(subset=[self.res_name_key])
+                self.log = pd.concat([train_log, test_log], axis=0, ignore_index=True)
+            else:
+                self.log = pm4py.read_xes(str(log_path))[
+                    [self.case_name_key, self.act_name_key, self.res_name_key, self.timestamp_key]]
             self.log[self.timestamp_key] = pd.to_datetime(self.log[self.timestamp_key])
 
         elif file_name.endswith('_1.csv')  or file_name.endswith('_2.csv')  or file_name.endswith('_3.csv')   : # for sepsis_1~3, hospital_billing_2~3
@@ -90,7 +91,7 @@ class LogData:
             self.log_ext = LogExt.CSV
             self._set_log_keys_and_ths()
             self.log = pd.read_csv(
-                log_path, 
+                log_path,
                 usecols=[self.case_name_key, self.act_name_key, self.res_name_key, self.timestamp_key]
             )
             self.log.columns = self.log.columns.str.strip()  # Trim whitespace from headers
@@ -102,61 +103,67 @@ class LogData:
         print("DataFrame columns:", self.log.columns)
 
         trace_ids = self.log[self.case_name_key].unique().tolist()
-        # Variant extraction
-        parameters = get_properties(self.log, case_id_key=self.case_name_key, activity_key=self.act_name_key, timestamp_key=self.timestamp_key)
-        log = log_converter.apply(self.log, variant=log_converter.Variants.TO_EVENT_LOG, parameters=parameters)
-        variants = get_variants(log, parameters=parameters)
-        print("Size of variants: ", len(variants))
+        if not shared.use_train_test_logs:
+            # Variant extraction
+            parameters = get_properties(self.log, case_id_key=self.case_name_key, activity_key=self.act_name_key, timestamp_key=self.timestamp_key)
+            log = log_converter.apply(self.log, variant=log_converter.Variants.TO_EVENT_LOG, parameters=parameters)
+            variants = get_variants(log, parameters=parameters)
+            print("Size of variants: ", len(variants))
 
-        v_id = 0
-        dict_cv = {}
-        df_clusters = pd.DataFrame(columns=['prefix', 'variant', "variant_ID", 'case', 'supp'])
-        prefix_length = self.evaluation_prefix_start
+            v_id = 0
+            dict_cv = {}
+            df_clusters = pd.DataFrame(columns=['prefix', 'variant', "variant_ID", 'case', 'supp'])
+            prefix_length = self.evaluation_prefix_start
 
-        for variant in variants:
-            c = []
-            for trace in variants[variant]:
-                dict_cv[trace.attributes['concept:name']] = "variant_" + str(v_id)
-                c.append(trace.attributes['concept:name'])
+            for variant in variants:
+                c = []
+                for trace in variants[variant]:
+                    dict_cv[trace.attributes['concept:name']] = "variant_" + str(v_id)
+                    c.append(trace.attributes['concept:name'])
 
-            prefix = str(variant[:prefix_length])
-            row = [prefix, variant, v_id, str(c), len(c)]
-            df_clusters = pd.concat([df_clusters, pd.Series(row, index=['prefix', 'variant', "variant_ID", "case", 'supp']).to_frame().T], ignore_index=True)
-            v_id += 1
+                prefix = str(variant[:prefix_length])
+                row = [prefix, variant, v_id, str(c), len(c)]
+                df_clusters = pd.concat([df_clusters, pd.Series(row, index=['prefix', 'variant', "variant_ID", "case", 'supp']).to_frame().T], ignore_index=True)
+                v_id += 1
 
-        prefix_count = df_clusters['prefix'].value_counts()
-        list_prefix = prefix_count[prefix_count > 1].index
-        df_clusters = df_clusters.loc[df_clusters['prefix'].isin(list_prefix)].reset_index(drop=True)
-        if use_variant_split:
-            variant_top2 = df_clusters.groupby('prefix', as_index=False).apply(lambda x: x['case'].tolist()[sorted(range(len(x['supp'])), reverse=True, key=lambda k: x['supp'].tolist()[k])[1]])
-            variant_top2.columns = ['prefix', 'case']
-            variant_top2['case'] = variant_top2['case'].apply(lambda x: eval(x))
-            variant_top2['freq'] = variant_top2['case'].apply(lambda x: len(x))
+            prefix_count = df_clusters['prefix'].value_counts()
+            list_prefix = prefix_count[prefix_count > 1].index
+            df_clusters = df_clusters.loc[df_clusters['prefix'].isin(list_prefix)].reset_index(drop=True)
 
-            list_variant_top2 = variant_top2['case'].tolist()
-            test_ids = []
-            for i in list_variant_top2:
-                test_ids = test_ids + i
+            if use_variant_split:
+                variant_top2 = df_clusters.groupby('prefix', as_index=False).apply(lambda x: x['case'].tolist()[sorted(range(len(x['supp'])), reverse=True, key=lambda k: x['supp'].tolist()[k])[1]])
+                variant_top2.columns = ['prefix', 'case']
+                variant_top2['case'] = variant_top2['case'].apply(lambda x: eval(x))
+                variant_top2['freq'] = variant_top2['case'].apply(lambda x: len(x))
+
+                list_variant_top2 = variant_top2['case'].tolist()
+                test_ids = []
+                for i in list_variant_top2:
+                    test_ids = test_ids + i
+            else:
+                # Simple Train/Test Split based on shared variables
+                sorting_cols = [self.timestamp_key, self.act_name_key, self.res_name_key]
+                self.log = self.log.sort_values(sorting_cols, ascending=True, kind='mergesort')
+                grouped = self.log.groupby(self.case_name_key)
+                start_timestamps = grouped[self.timestamp_key].min().reset_index()
+                start_timestamps = start_timestamps.sort_values(self.timestamp_key, ascending=True, kind='mergesort')
+                train_ids = list(start_timestamps[self.case_name_key])[:int(train_ratio * len(start_timestamps))]
+                #train_ids= trace_ids[: int(len(trace_ids) * train_ratio)]
+                test_ids = [trace for trace in trace_ids if trace not in train_ids]
+            filterByKey = lambda keys: {x: dict_cv[x] for x in keys}
+            dict_cv_train = filterByKey(trace_ids)
+            dict_cv_test = filterByKey(test_ids)
+            # Outputs
+            self.training_trace_ids = trace_ids if use_variant_split else train_ids
+            self.case_to_variant = dict_cv
+            self.case_to_variant_train = dict_cv_train
+            self.case_to_variant_test = dict_cv_test
+            self.evaluation_trace_ids = test_ids
         else:
-            # Simple Train/Test Split based on shared variables
-            sorting_cols = [self.timestamp_key, self.act_name_key, self.res_name_key]
-            self.log = self.log.sort_values(sorting_cols, ascending=True, kind='mergesort')
-            grouped = self.log.groupby(self.case_name_key)
-            self.maxlen = int (grouped.size().max())
-            #start_timestamps = grouped[self.timestamp_key].min().reset_index()
-            #start_timestamps = start_timestamps.sort_values(self.timestamp_key, ascending=True, kind='mergesort')
-            #train_ids = list(start_timestamps[self.case_name_key])[:int(train_ratio * len(start_timestamps))]
-            train_ids= trace_ids[: int(len(trace_ids) * train_ratio)]
-            test_ids = [trace for trace in trace_ids if trace not in train_ids]
-        filterByKey = lambda keys: {x: dict_cv[x] for x in keys}
-        dict_cv_train = filterByKey(trace_ids)
-        dict_cv_test = filterByKey(test_ids)
-        # Outputs
-        self.training_trace_ids = trace_ids if use_variant_split else train_ids
-        self.case_to_variant = dict_cv
-        self.case_to_variant_train = dict_cv_train
-        self.case_to_variant_test = dict_cv_test
-        self.evaluation_trace_ids = test_ids
+            # Outputs
+            self.training_trace_ids = train_log[self.case_name_key].unique().tolist()
+            self.evaluation_trace_ids = test_log[self.case_name_key].unique().tolist()
+
         # check for new resources and activities
         training_traces = self.log[self.log[self.case_name_key].isin(self.training_trace_ids)]
         act_chars = list(training_traces[self.act_name_key].unique())
@@ -200,125 +207,57 @@ class LogData:
         addit = '' if self.log_ext == LogExt.CSV else 'case:'
 
         if self.log_name == LogName.UBE:
-             self.case_name_key = 'case:concept:name'
-             self.act_name_key = 'concept:name'
-             self.res_name_key = 'org:resource'
-             self.timestamp_key = 'time:timestamp'
-             self.evaluation_prefix_start = 3
-             self.evaluation_prefix_end = 7
-             self.compliance_th = 1.00
-
-        elif self.log_name == LogName.HELPDESK:
-             self.case_name_key = 'Case ID'
-             self.act_name_key = 'Activity'
-             self.res_name_key = 'Resource'  # Add the resource key here
-             self.timestamp_key = 'Complete Timestamp'
-             self.evaluation_prefix_start = 3 # 3, 5, 7
-             self.evaluation_prefix_end = 7
-             self.compliance_th = 1.00 
-
-        elif self.log_name == LogName.BPIC12:
-             self.case_name_key = 'Case ID'
-             self.act_name_key = 'Activity'
-             self.res_name_key = 'Resource'  # Add the resource key here
-             self.timestamp_key = 'Complete Timestamp'
-             self.evaluation_prefix_start = 5 # 8~12
-             self.evaluation_prefix_end = 5
-             self.compliance_th = 1.00 
-
-        elif self.log_name == LogName.BPIC13I:
-             self.case_name_key = 'Case ID'
-             self.act_name_key = 'Activity'
-             self.res_name_key = 'Resource'  # Add the resource key here
-             self.timestamp_key = 'Complete Timestamp'
-             self.evaluation_prefix_start = 3
-             self.evaluation_prefix_end = 7
-             self.compliance_th = 1.00 
-
-        elif self.log_name == LogName.BPIC13CP:
-             self.case_name_key = 'Case ID'
-             self.act_name_key = 'Activity'
-             self.res_name_key = 'org:group'  # Add the resource key here
-             self.timestamp_key = 'Complete Timestamp'
-             self.evaluation_prefix_start = 3
-             self.evaluation_prefix_end = 7
-             self.compliance_th = 1.00 
-
-        elif self.log_name == LogName.ROAD:
-             self.case_name_key = 'Case'
-             self.act_name_key = 'Activity'
-             self.timestamp_key = 'Timestamp'
-             self.evaluation_prefix_start = 3 # 3
-             self.evaluation_prefix_end = 7 # 7
-             self.compliance_th = 1.00 
-          
-        elif self.log_name == LogName.SEPSIS1:
-            self.case_name_key = addit+'Case ID'
-            self.label_name_key = addit+'label'
-            self.label_pos_val = 'deviant'
-            self.label_neg_val = 'regular'
-            self.act_name_key = 'Activity'
-            self.res_name_key = 'org:group'
+            self.case_name_key = 'case:concept:name'
+            self.act_name_key = 'concept:name'
+            self.res_name_key = 'org:resource'
             self.timestamp_key = 'time:timestamp'
-            self.compliance_th = 0.77   # 0.62 for complete petrinet, 0.77 for reduced petrinet
-            self.evaluation_th = self.compliance_th * shared.th_reduction_factor
-            self.evaluation_prefix_start = 8
-            self.evaluation_prefix_end = 12
-        
-        
-        elif self.log_name == LogName.PRODUCTION:
-             self.case_name_key = 'Case ID'
-             self.act_name_key = 'Activity'
-             self.res_name_key = 'Resource'  # Add the resource key here
-             self.timestamp_key = 'Complete Timestamp'
-             self.evaluation_prefix_start = 3 # 3, 5, 7
-             self.evaluation_prefix_end = 7
-             self.compliance_th = 1.00 
-
-        elif self.log_name == LogName.a10r20w3:
-             self.case_name_key = 'CaseID'
-             self.act_name_key = 'ActivityID'
-             self.res_name_key = 'Resource'  # Add the resource key here
-             self.timestamp_key = 'CompleteTimestamp'
-             self.evaluation_prefix_start = 3
-             self.evaluation_prefix_end = 7
-             self.compliance_th = 1.00
-
-        elif self.log_name == LogName.a10r20s3:
-             self.case_name_key = 'CaseID'
-             self.act_name_key = 'ActivityID'
-             self.res_name_key = 'Resource'  # Add the resource key here
-             self.timestamp_key = 'CompleteTimestamp'
-             self.evaluation_prefix_start = 3
-             self.evaluation_prefix_end = 7
-             self.compliance_th = 1.00
-
-        elif self.log_name == LogName.a10r5s1:
-             self.case_name_key = 'CaseID'
-             self.act_name_key = 'ActivityID'
-             self.res_name_key = 'Resource'  # Add the resource key here
-             self.timestamp_key = 'CompleteTimestamp'
-             self.evaluation_prefix_start = 3
-             self.evaluation_prefix_end = 7
-             self.compliance_th = 1.00
-
-        elif self.log_name == LogName.a50r5s1:
-             self.case_name_key = 'CaseID'
-             self.act_name_key = 'ActivityID'
-             self.res_name_key = 'Resource'  # Add the resource key here
-             self.timestamp_key = 'CompleteTimestamp'
-             self.evaluation_prefix_start = 3
-             self.evaluation_prefix_end = 7
-             self.compliance_th = 1.00
-
-        elif self.log_name == LogName.a5r5s1:
-             self.case_name_key = 'CaseID'
-             self.act_name_key = 'ActivityID'
-             self.res_name_key = 'Resource'  # Add the resource key here
-             self.timestamp_key = 'CompleteTimestamp'
-             self.evaluation_prefix_start = 3
-             self.evaluation_prefix_end = 5
-             self.compliance_th = 1.00
-
+            self.evaluation_prefix_start = 3
+            self.evaluation_prefix_end = 7
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.HELPDESK:
+            median =5
+            self.case_name_key = 'case:concept:name'
+            self.act_name_key = 'concept:name'
+            self.res_name_key = 'org:resource'
+            self.timestamp_key = 'time:timestamp'
+            self.evaluation_prefix_start = median//2 - 1
+            self.evaluation_prefix_end = median//2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.BPIC11:
+            median = 92
+            self.case_name_key = 'case:concept:name'
+            self.act_name_key = 'concept:name'
+            self.res_name_key = 'org:resource'
+            self.timestamp_key = 'time:timestamp'
+            self.evaluation_prefix_start = median//2 - 2
+            self.evaluation_prefix_end = median//2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.BPIC12:
+            median = 32
+            self.case_name_key = 'case:concept:name'
+            self.act_name_key = 'concept:name'
+            self.res_name_key = 'org:resource'
+            self.timestamp_key = 'time:timestamp'
+            self.evaluation_prefix_start = median//2 - 2
+            self.evaluation_prefix_end = median//2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.BPIC13:
+            median = 4
+            self.case_name_key = 'case:concept:name'
+            self.act_name_key = 'concept:name'
+            self.res_name_key = 'org:resource'
+            self.timestamp_key = 'time:timestamp'
+            self.evaluation_prefix_start = median//2 - 1
+            self.evaluation_prefix_end = median//2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.BPIC17:
+            median = 54
+            self.case_name_key = 'case:concept:name'
+            self.act_name_key = 'concept:name'
+            self.res_name_key = 'org:resource'
+            self.timestamp_key = 'time:timestamp'
+            self.evaluation_prefix_start = median//2 - 2
+            self.evaluation_prefix_end = median//2 #+ 2
+            self.compliance_th = 1.00
         else:
             raise RuntimeError(f"No settings defined for log: {self.log_name.value}.")
