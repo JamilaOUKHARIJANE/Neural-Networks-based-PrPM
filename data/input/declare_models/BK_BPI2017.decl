@@ -1,0 +1,47 @@
+activity A_Concept
+bind A_Concept: org:resource
+activity O_Created
+bind O_Created: org:resource
+activity A_Create Application
+bind A_Create Application: org:resource
+activity W_Complete application
+bind W_Complete application: org:resource
+activity A_Accepted
+bind A_Accepted: org:resource
+activity O_Create Offer
+bind O_Create Offer: org:resource
+activity W_Call after offers
+bind W_Call after offers: org:resource
+activity A_Complete
+bind A_Complete: org:resource
+activity O_Sent mail and online
+bind O_Sent mail and online: org:resource
+activity A_Validating
+bind A_Validating: org:resource
+activity W_Validate application
+bind W_Validate application: org:resource
+activity O_Returned
+bind O_Returned: org:resource
+activity W_Handle leads
+bind W_Handle leads: org:resource
+activity A_Submitted
+bind A_Submitted: org:resource
+activity A_Pending
+bind A_Pending: org:resource
+activity O_Accepted
+bind O_Accepted: org:resource
+activity W_Call incomplete files
+bind W_Call incomplete files: org:resource
+activity A_Incomplete
+bind A_Incomplete: org:resource
+activity O_Cancelled
+bind O_Cancelled: org:resource
+activity A_Cancelled
+bind A_Cancelled: org:resource
+org:resource: User_54, User_133, User_53, User_52, User_134, User_51, User_135, User_58, User_57, User_130, User_56, User_131, User_55, User_129, User_125, User_50, User_126, User_128, User_121, User_43, User_122, User_42, User_41, User_123, User_40, User_46, User_120, User_44, User_49, User_48, User_118, User_119, User_31, User_111, User_112, User_30, User_113, User_36, User_35, User_39, User_37, User_1, User_2, User_3, User_107, User_109, User_103, User_104, User_105, User_106, User_21, User_100, User_25, User_24, User_23, User_29, User_28, User_27, User_26, User_4, User_5, User_7, User_8, User_10, User_98, User_96, User_14, User_12, User_99, User_18, User_17, User_16, User_15, User_90, User_94, User_93, User_87, User_84, User_88, User_83, User_81, User_80, User_75, User_79, User_78, User_77, User_72, User_71, User_70, User_149, User_143, User_65, User_64, User_144, User_63, User_145, User_62, User_146, User_69, User_68, User_140, User_67, User_141, User_66, User_142, User_61, User_136, User_60, User_137, User_138, User_139
+Existence[W_Call after offers] |A.org:resource is User_123 |
+Existence[A_Validating] |A.org:resource is User_133 |
+Existence[O_Returned] |A.org:resource is User_123 |
+Chain Precedence[W_Validate application, A_Validating] |A.org:resource is User_133 | |
+Chain Response[W_Call after offers, W_Validate application] |A.org:resource is User_123 | |
+Chain Response[O_Returned, W_Validate application] |A.org:resource is User_123 | |

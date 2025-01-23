@@ -1,0 +1,15 @@
+activity Resolve ticket
+bind Resolve ticket: org:resource
+activity Closed
+bind Closed: org:resource
+activity Assign seriousness
+bind Assign seriousness: org:resource
+activity Take in charge ticket
+bind Take in charge ticket: org:resource
+activity Wait
+bind Wait: org:resource
+activity Require upgrade
+bind Require upgrade: org:resource
+org:resource: Value 5, Value 6, Value 20, Value 3, Value 10, Value 4, Value 11, Value 22, Value 1, Value 2, Value 9, Value 7, Value 16, Value 17, Value 18, Value 12, Value 13, Value 14, Value 15
+Chain Precedence[Resolve ticket, Closed] |A.org:resource is Value 3 | |
+Existence[Closed] |A.org:resource is Value 3 |

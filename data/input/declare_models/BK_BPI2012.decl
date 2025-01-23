@@ -1,0 +1,45 @@
+activity A_PARTLYSUBMITTED
+bind A_PARTLYSUBMITTED: org:resource
+activity A_SUBMITTED
+bind A_SUBMITTED: org:resource
+activity A_DECLINED
+bind A_DECLINED: org:resource
+activity W_Completeren aanvraag
+bind W_Completeren aanvraag: org:resource
+activity A_PREACCEPTED
+bind A_PREACCEPTED: org:resource
+activity A_ACCEPTED
+bind A_ACCEPTED: org:resource
+activity A_FINALIZED
+bind A_FINALIZED: org:resource
+activity W_Nabellen offertes
+bind W_Nabellen offertes: org:resource
+activity O_SELECTED
+bind O_SELECTED: org:resource
+activity O_SENT
+bind O_SENT: org:resource
+activity O_CREATED
+bind O_CREATED: org:resource
+activity W_Afhandelen leads
+bind W_Afhandelen leads: org:resource
+activity O_SENT_BACK
+bind O_SENT_BACK: org:resource
+activity W_Valideren aanvraag
+bind W_Valideren aanvraag: org:resource
+activity A_APPROVED
+bind A_APPROVED: org:resource
+activity A_ACTIVATED
+bind A_ACTIVATED: org:resource
+activity A_REGISTERED
+bind A_REGISTERED: org:resource
+activity O_ACCEPTED
+bind O_ACCEPTED: org:resource
+activity W_Nabellen incomplete dossiers
+bind W_Nabellen incomplete dossiers: org:resource
+org:resource: 11180, 11181, 10609, 10809, 10932, 10899, 10931, 112, 10779, 10933, 11309, 10935, 11300, 10972, 11302, 10138, 11304, 11119, 10789, 10228, 11319, 10629, 10188, 10861, 10982, 10863, 10909, 11009, 10912, 10913, 11122, 11121, 11000, 11289, 11201, 11003, 11002, 11203, 11049, 11202, 11169, 11339, 11019, 10889, 11179, 10881, 11299, 10124, 11259
+Existence[W_Valideren aanvraag] |A.org:resource is 10899 |
+Existence[O_SENT_BACK] |A.org:resource is 10899 |
+Chain Response[O_SENT_BACK, W_Valideren aanvraag] |A.org:resource is 10899 | |
+Chain Precedence[W_Nabellen offertes, O_SENT_BACK] |A.org:resource is 10899 | |
+Chain Precedence[O_SENT_BACK, W_Valideren aanvraag] |A.org:resource is 10899 | |
+Chain Response[W_Valideren aanvraag, W_Nabellen offertes] |A.org:resource is 10899 | |
