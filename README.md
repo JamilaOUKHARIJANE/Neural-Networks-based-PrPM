@@ -11,6 +11,7 @@ The following Python packages are required:
 -   [jellyfish]() tested with version 0.9.0;
 -   [Distance]() tested with version 0.1.3.
 -   [pm4py]() tested with version 2.5.2.
+-   [declare4py]() tested with version 2.2.0.
 -   [matplotlib](https://matplotlib.org/) tested with version 3.6.3;
 -   [numpy]() tested with version 1.26.4;
 -   [pandas]() tested with version 1.5.3;
