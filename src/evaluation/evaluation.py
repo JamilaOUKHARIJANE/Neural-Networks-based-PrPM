@@ -69,7 +69,6 @@ def evaluate_all(log_data: LogData, models_folder: str, alg: str, method_fitness
     bk_model = None
     if shared.declare_BK:
         bk_model = extract_Declare_bk_model(log_data.log_name.value)
-
     for fold in range(shared.folds):
         eval_algorithm = alg + "_cf" + "r"*resource + "t"*timestamp + "o"*outcome
         start_time = time.time()
