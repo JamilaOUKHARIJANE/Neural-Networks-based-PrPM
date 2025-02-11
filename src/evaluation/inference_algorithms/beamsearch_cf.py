@@ -4,7 +4,6 @@ import csv
 from pathlib import Path
 import pdb
 from queue import PriorityQueue
-from typing import cast
 import distance
 import numpy as np
 import pandas as pd
@@ -146,7 +145,7 @@ def run_experiments(log_data: LogData, compliant_traces: pd.DataFrame, maxlen, p
                                 prefix_trace = prefix_trace[:-1]
                                 BK_res = compliance_checking(log_data, child_node.cropped_line[-1],
                                                          child_node.cropped_line_group[-1],
-                                                         bk_model, prefix_trace)
+                                                         bk_model, prefix_trace,resource)
                             if k == 0:
                                 if shared.declare_BK and shared.BK_end and BK_res == np.NINF:  # violated: continue the search
                                     violated_nodes[k] = child_node
@@ -244,13 +243,10 @@ def run_experiments(log_data: LogData, compliant_traces: pd.DataFrame, maxlen, p
                          # put top 3 based on score
                         temp_cropped_trace_df = temp_cropped_trace.get_cropped_trace()  # Extract the DataFrame
 
-                        frontier_nodes, record = get_beam_size(frontier_nodes, NodePrediction, child_node, bk_model,
-                                                     temp_cropped_trace, temp_cropped_trace_df, score,
-                                                               y_group, y_char, fitness_temp, act_ground_truth_org,
-                                                    char_indices, target_indices_char, target_char_indices,
-                                                    target_indices_char_group, target_char_indices_group, i,
-                                                    log_data, resource, beam_size = shared.beam_size)
-                        
+                        frontier_nodes, record = get_beam_size(frontier_nodes, NodePrediction, child_node, bk_model,weight, temp_cropped_trace,
+                                                               temp_cropped_trace_df, score,y_group, y_char, fitness_temp,
+                                                               target_indices_char, target_char_indices, target_indices_char_group,
+                                                               target_char_indices_group,log_data, resource, beam_size = shared.beam_size)
                         record_update = record_update + record
                         
                     visited_nodes = frontier_nodes
@@ -308,12 +304,10 @@ def run_experiments(log_data: LogData, compliant_traces: pd.DataFrame, maxlen, p
                         output.append(outcome_ground_truth)
                         output.append(predicted_outcome)
                         output.append('1' if outcome_ground_truth == predicted_outcome else '0')
-
-                    #output.append(weight)
-                    output.append(' '.join(record_update))
+                    output.append(weight)
+                    #output.append(' '.join(record_update))
                     output.append('Violated' if is_violated else 'Satisfied')
                     #output.append('>>'.join(map(str, act_ground_truth_org)))
-                    
                     #prediction_org = [log_data.act_enc_mapping[i] if i != "!" else "" for i in predicted]
                     #output.append('>>'.join(map(str, prediction_org)))
                     cache_trace.add(act_prefix+""+res_prefix, output)
@@ -329,9 +323,9 @@ def run_experiments(log_data: LogData, compliant_traces: pd.DataFrame, maxlen, p
                 #output.append( list(log_data.case_to_variant_train.values()).count(log_data.case_to_variant_train[trace_name])  )
                 #output.append( list(log_data.case_to_variant_test.values()).count(log_data.case_to_variant_test[trace_name])  )
                 output.append(prefix_size)
-                output.append(check_prefix[2]) #6
+                output.append(check_prefix[2])
                 output.append(act_ground_truth)
-                predicted = check_prefix[4] #8
+                predicted = check_prefix[4]
                 output.append(predicted)
                 
                 dls = 1 - \
@@ -340,12 +334,10 @@ def run_experiments(log_data: LogData, compliant_traces: pd.DataFrame, maxlen, p
                     dls = 0
                 output.append(dls)
                 output.append(1 - distance.jaccard(predicted, act_ground_truth))
-                #output = output + check_prefix[11:(len(check_prefix)-2)]
                 if resource:
                     trace_prefix_res = ''.join(trace_prefix[log_data.res_name_key].tolist())
                     res_ground_truth = ''.join(trace_ground_truth[log_data.res_name_key].tolist())
-                    predicted_group = check_prefix[9] #13
-
+                    predicted_group = check_prefix[9]
                     output.append(trace_prefix_res)
                     output.append(res_ground_truth)
                     output.append(predicted_group)
@@ -364,7 +356,7 @@ def run_experiments(log_data: LogData, compliant_traces: pd.DataFrame, maxlen, p
                     if dls_combined < 0:
                         dls_combined = 0
                     output.append(dls_combined)
-                output.append(check_prefix[13]) #record fitness
+                output.append(check_prefix[13])  # weight
                 output.append(check_prefix[14]) #compliance satisfied or violated
                 #output = output + check_prefix[15:(len(check_prefix) - 2)]
                 #act_ground_truth_org = [log_data.act_enc_mapping[i] if i != "!" else "" for i in act_ground_truth]
@@ -396,7 +388,7 @@ def run_experiments(log_data: LogData, compliant_traces: pd.DataFrame, maxlen, p
             spamwriter.writerow(["Case ID", "Prefix length",
                  "Trace Prefix Act", "Ground truth", "Predicted Acts", "Damerau-Levenshtein Acts", "Jaccard Acts",
                  "Trace Prefix Res", "Ground Truth Resources", "Predicted Resources", "Damerau-Levenshtein Resources",
-                 "Jaccard Resources", "Damerau-Levenshtein Combined","Record", "Compliance"])
+                 "Jaccard Resources", "Damerau-Levenshtein Combined","Weight", "Compliance"])
         elif resource and outcome:
             spamwriter.writerow(["Case ID", "Variant ID", "Variant_size", "Variant_size_train", "Variant_size_test", "Prefix length", "Trace Prefix Act", "Ground truth", "Predicted", "Damerau-Levenshtein", "Jaccard", "Trace Prefix Res", "Ground Truth Group", "Predicted Group", "Damerau-Levenshtein Resource", "Ground truth outcome", "Predicted outcome", "Outcome diff.", "Weight", "Record", "Record_org", "Prediction_org"])
             

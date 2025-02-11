@@ -1,6 +1,4 @@
 import time
-#from multiprocessing import Process
-
 import pm4py
 import itertools
 from pathlib import Path
@@ -72,27 +70,7 @@ def evaluate_all(log_data: LogData, models_folder: str, alg: str, method_fitness
     if shared.declare_BK:
         bk_model = extract_Declare_bk_model(log_data.log_name.value)
 
-    '''def run_experiment(evaluation_prefix_start):
-        log_data.evaluation_prefix_start = evaluation_prefix_start
-        # Construct the output filename
-        output_filename = folder_path / (
-            f'{log_data.log_name.value}_beam{str(shared.beam_size)}_fold{str(fold)}_cluster{evaluation_prefix_start}'
-            f'{"_probability_reduction" * shared.useProb_reduction}{(shared.version + "_BK") * shared.declare_BK}.csv'
-        )
-        print('beamsearch')
-        # Extract the model filename
-        model_filename = extract_last_model_checkpoint(
-            log_data.log_name.value, models_folder, fold,
-            'CF' + 'R' * resource + 'O' * outcome
-        )
-        # Run the beam search experiment
-        beamsearch_cf.run_experiments(
-            log_data, compliant_traces, maxlen, predict_size, act_to_int,
-            target_act_to_int, target_int_to_act, res_to_int, target_res_to_int,
-            target_int_to_res, model_filename, output_filename, bk_filename,
-            method_fitness, resource, outcome, weight, bk_model
-        )'''
-    for fold in range(1):#shared.folds):
+    for fold in range(shared.folds):
         eval_algorithm = alg + "_cf" + "r"*resource + "t"*timestamp + "o"*outcome
         start_time = time.time()
 
@@ -102,19 +80,8 @@ def evaluate_all(log_data: LogData, models_folder: str, alg: str, method_fitness
 
         print(f"fold {fold} - {eval_algorithm}")
         if alg == "beamsearch":
-            '''# Start parallel processes for evaluation_prefix_start + 1, +2, and +3
-            processes = []
-            for i in range(1, 4):
-                evaluation_prefix_start = log_data.evaluation_prefix_start + i
-                p = Process(target=run_experiment, args=(evaluation_prefix_start,))
-                processes.append(p)
-                p.start()
-            for p in processes:
-                p.join()'''
-
             output_filename = folder_path / (f'{log_data.log_name.value}_beam{str(shared.beam_size)}_fold{str(fold)}_cluster{log_data.evaluation_prefix_start}'
-                                             f'{"_probability_reduction" * shared.useProb_reduction}{(shared.version+"_BK")* shared.declare_BK}.csv')
-
+                                             f'{"_probability_reduction" * shared.useProb_reduction}{("_BK")* shared.declare_BK}.csv')
             print('beamsearch')
             model_filename = extract_last_model_checkpoint(log_data.log_name.value, models_folder, fold, 'CF' + 'R'*resource + 'O'*outcome)
             beamsearch_cf.run_experiments(log_data, compliant_traces, maxlen, predict_size, act_to_int,

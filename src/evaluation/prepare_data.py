@@ -7,7 +7,6 @@ The script is expanded to the resource attribute
 from __future__ import division
 import copy
 import itertools
-import pdb
 import re
 from pathlib import Path
 from typing import Dict
@@ -16,14 +15,10 @@ import numpy as np
 import pm4py
 import pandas as pd
 from Declare4Py.D4PyEventLog import D4PyEventLog
-from Declare4Py.ProcessMiningTasks.ConformanceChecking.MPDeclareAnalyzer import MPDeclareAnalyzer
 from Declare4Py.ProcessMiningTasks.ConformanceChecking.MPDeclareResultsBrowser import MPDeclareResultsBrowser
-from Declare4Py.Utils.Declare.Checkers import CheckerResult, TemplateConstraintChecker
 from Declare4Py.Utils.Declare.TraceStates import TraceState
-#from tensorflow import truediv
-#from operator import truediv
 
-
+from src.commons.ConstraintChecker import ConstraintChecker
 from src.commons import shared_variables as shared
 from src.commons.log_utils import LogData
 from src.evaluation.Checkers import TraceDeclareAnalyzer
@@ -51,15 +46,15 @@ def prepare_encoded_data(log_data: LogData, resource: bool):
         res_chars.sort()
         target_res_chars = copy.copy(res_chars)
         target_res_chars.append('!')
-        #target_res_chars.sort()
         res_to_int = dict((c, i+1) for i, c in enumerate(res_chars))
         target_res_to_int = dict((c, i+1) for i, c in enumerate(target_res_chars))
         target_int_to_res = dict((i+1, c) for i, c in enumerate(target_res_chars))
     else:
+        res_chars = None
         res_to_int = None
         target_res_to_int = None
         target_int_to_res = None
-    return act_chars,res_chars, act_to_int, target_act_to_int, target_int_to_act, res_to_int, target_res_to_int, target_int_to_res
+    return act_chars, res_chars, act_to_int, target_act_to_int, target_int_to_act, res_to_int, target_res_to_int, target_int_to_res
 
 
 def select_petrinet_compliant_traces(log_data: LogData,  method_fitness: str, traces: pd.DataFrame, path_to_pn_model_file: Path):
@@ -153,7 +148,6 @@ def encode(crop_trace: pd.DataFrame, log_data: LogData,  maxlen: int, char_indic
                 if t < len(sentence_group):
                     if sentence_group[t] in chars_group:
                         x[0, t + leftpad, len(char_indices) + char_indices_group[sentence_group[t]] - 1] = 1
-                #x[0, t + leftpad, len(chars) + len(chars_group)] = t + 1
         elif shared.use_modulator:
             num_features = maxlen
             x_a = np.zeros((1, num_features), dtype=np.float32)
@@ -193,7 +187,6 @@ def encode(crop_trace: pd.DataFrame, log_data: LogData,  maxlen: int, char_indic
             for t, char in enumerate(sentence):
                 if char in chars:
                     x[0, t + leftpad, char_indices[char]] = 1
-                #x[0, t + leftpad, len(chars)] = t + 1
         else:
             num_features = maxlen
             x = np.zeros((1, num_features), dtype=np.float32)
@@ -208,7 +201,6 @@ def repetitions(seq: str):
 
 
 def reduce_loop_probability(prefix_seq):
-    tmp = dict()
     list_of_rep = list(repetitions(prefix_seq))
     if list_of_rep:
         str_rep = list_of_rep[-1][0]
@@ -232,9 +224,9 @@ def apply_reduction_probability(act_seq, res_seq, pred_act, pred_res, target_act
                                                      place_of_starting_symbol_res-1] / stop_symbol_probability_amplifier_current_res
     return pred_act, pred_res
 
-def get_beam_size(self, NodePrediction, current_prediction_premis, bk_model, prefix_trace, prefix_trace_df,
-                  prediction, res_prediction, y_char, fitness, act_ground_truth_org,
-                  char_indices, target_ind_to_act, target_act_to_ind, target_ind_to_res, target_res_to_ind, step,
+def get_beam_size(self, NodePrediction, current_prediction_premis, bk_model,weight, prefix_trace, prefix_trace_df,
+                  prediction, res_prediction, y_char, fitness,
+                  target_ind_to_act, target_act_to_ind, target_ind_to_res, target_res_to_ind,
                   log_data, resource, beam_size):
     record = []
     act_prefix = prefix_trace.cropped_line
@@ -252,11 +244,16 @@ def get_beam_size(self, NodePrediction, current_prediction_premis, bk_model, pre
             for res_pred_idx, act_pred_idx in np.ndindex(prob_matrix.shape):
                 temp_prediction = target_ind_to_act[act_pred_idx + 1]
                 temp_res_prediction = target_ind_to_res[res_pred_idx + 1]
-
-                BK_res = compliance_checking(log_data, temp_prediction, temp_res_prediction, bk_model,
-                                          prefix_trace, prefix_trace_df)
-                prob_matrix[res_pred_idx][act_pred_idx] = (prob_matrix[res_pred_idx][act_pred_idx] * 0.5 * (1-shared.w)) + (BK_res * shared.w)
+                BK_res = compliance_checking(log_data, temp_prediction, temp_res_prediction, bk_model, prefix_trace,resource)
+                prob_matrix[res_pred_idx][act_pred_idx] = (prob_matrix[res_pred_idx][act_pred_idx] * 0.5 * (1-weight)) + (BK_res * weight)
         sorted_prob_matrix = np.argsort(prob_matrix, axis=None)[::-1]
+    else:
+        if shared.declare_BK and not shared.BK_end:
+            BK_res = [compliance_checking(log_data, target_ind_to_act[act_pred_idx + 1], None,
+                                          bk_model, prefix_trace) for act_pred_idx in range(len(prediction))]
+            prediction = (np.log(prediction) * (1-weight)) + (BK_res * weight)
+        else:
+            prediction = np.log(prediction)
 
     for j in range(beam_size):
         prefix_trace = prefix_trace.cropped_trace if isinstance(prefix_trace, NodePrediction) else prefix_trace
@@ -271,7 +268,7 @@ def get_beam_size(self, NodePrediction, current_prediction_premis, bk_model, pre
             pred_idx = np.argsort(prediction)[len(prediction) - j - 1]
             temp_prediction = target_ind_to_act[pred_idx + 1]
             temp_res_prediction = None
-            probability_this = np.log(np.sort(prediction)[len(prediction) - 1 - j])
+            probability_this = np.sort(prediction)[len(prediction) - 1 - j]
 
         predicted_row = prefix_trace_df.tail(1).copy()
         predicted_row.loc[:, log_data.act_name_key] = temp_prediction
@@ -293,72 +290,34 @@ def get_beam_size(self, NodePrediction, current_prediction_premis, bk_model, pre
             record.append(str(
                 "trace_org = " + '>>'.join(trace_org) +
                 "// previous = " + str(round(current_prediction_premis.probability_of, 3)) +
-                "// current = " + str(round(current_prediction_premis.probability_of + probability_this, 3)) + #np.log(probability_this)
+                "// current = " + str(round(current_prediction_premis.probability_of + probability_this, 3)) +
                 "// rnn = " + str(round(y_char_this, 3)) +
                 "// fitness = " + str(round(fitness_this, 3))) +
                             "&"
                             )
     return self, record
 
-def check_compliance(log_data, temp_prediction, temp_res_prediction, bk_model, prefix_trace_df, prefix_trace):
-
-    completed = False
-    if temp_prediction == "!" or temp_res_prediction == "!":
-        completed = True
-        temp_prediction = "!"
-        temp_res_prediction = "!"
-        temp_cropped_trace_next = prefix_trace.copy()
-    else:
-        predicted_row = prefix_trace_df.tail(1).copy()
-        predicted_row.loc[:, log_data.act_name_key] = temp_prediction
-        predicted_row.loc[:, log_data.res_name_key] = temp_res_prediction
-        temp_cropped_trace_next = pd.concat([prefix_trace, predicted_row], axis=0)
-
-    temp_cropped_trace_next[log_data.act_name_key] = temp_cropped_trace_next[log_data.act_name_key].apply(
-        lambda x: x.replace(x, log_data.act_enc_mapping[x]))
-    temp_cropped_trace_next[log_data.res_name_key] = temp_cropped_trace_next[log_data.res_name_key].apply(
-        lambda x: x.replace(x, log_data.res_enc_mapping[x] if x != "!" else ""))
-    log = convert_to_log(temp_cropped_trace_next, log_data.case_name_key, log_data.act_name_key)
-    d_log = D4PyEventLog()
-    d_log.log = log
-    d_log.log_length = len(d_log.log)
-    d_log.timestamp_key = log_data.timestamp_key
-    d_log.activity_key = log_data.act_name_key
-    basic_checker = TraceDeclareAnalyzer(log=d_log, declare_model=bk_model,
-                                            consider_vacuity=True, completed=completed)
-    conf_check_res: MPDeclareResultsBrowser = basic_checker.run()
-    state = conf_check_res.get_metric(metric="state", trace_id=0)
-    if 0 in state:
-        BK_result = np.NINF  # violated constraint found
-    else:
-        results = []
-        for result in conf_check_res.model_check_res[0]:
-            if result.state in [TraceState.POSSIBLY_SATISFIED.value, TraceState.POSSIBLY_VIOLATED]:
-                results.append(0.5)
-            elif result.state == TraceState.SATISFIED:
-                results.append(1)
-        BK_result = np.log(np.max(results))
-    return BK_result
-
-
-def compliance_checking(log_data, temp_prediction, temp_res_prediction, bk_model, prefix_trace, prefix_trace_df=None):
+def compliance_checking(log_data, temp_prediction, temp_res_prediction, bk_model, prefix_trace, resource=False):
 
     BK_result = np.log(1)
     completed = False
     if temp_prediction == "!" or temp_res_prediction == "!":
         completed = True
         temp_prediction = "!"
-        temp_res_prediction = "!"
+        if resource:
+            temp_res_prediction = "!"
         temp_cropped_trace_next = prefix_trace.copy()
     else:
-        predicted_row = prefix_trace_df.tail(1).copy()
+        predicted_row = prefix_trace.tail(1).copy()
         predicted_row.loc[:, log_data.act_name_key] = temp_prediction
-        predicted_row.loc[:, log_data.res_name_key] = temp_res_prediction
+        if resource:
+            predicted_row.loc[:, log_data.res_name_key] = temp_res_prediction
         temp_cropped_trace_next = pd.concat([prefix_trace, predicted_row], axis=0)
 
     temp_cropped_trace_next[log_data.act_name_key] = temp_cropped_trace_next[log_data.act_name_key].apply(
         lambda x: x.replace(x, log_data.act_enc_mapping[x]))
-    temp_cropped_trace_next[log_data.res_name_key] = temp_cropped_trace_next[log_data.res_name_key].apply(
+    if resource:
+        temp_cropped_trace_next[log_data.res_name_key] = temp_cropped_trace_next[log_data.res_name_key].apply(
         lambda x: x.replace(str(x), log_data.res_enc_mapping[x] if x != "!" else ""))
     log = convert_to_log(temp_cropped_trace_next, log_data.case_name_key, log_data.act_name_key)
     d_log = D4PyEventLog()
@@ -376,14 +335,11 @@ def compliance_checking(log_data, temp_prediction, temp_res_prediction, bk_model
         results = []
         for result in conf_check_res.model_check_res[0]:
             if result.state == TraceState.POSSIBLY_SATISFIED.value:
-                results.append(0.66)
+                results.append(ConstraintChecker.POSSIBLY_SATISFIED.value)
             elif result.state == TraceState.SATISFIED:
-                results.append(1)
+                results.append(ConstraintChecker.SATISFIED.value)
             elif result.state == TraceState.POSSIBLY_VIOLATED:
-                results.append(0.33)
-        if shared.version =="_sum":
-            BK_result = np.log(np.sum(results))
-        else:
-            BK_result = np.log(np.mean(results))
+                results.append(ConstraintChecker.POSSIBLY_VIOLATED.value)
+        BK_result = np.log(np.mean(results))
     return BK_result
 

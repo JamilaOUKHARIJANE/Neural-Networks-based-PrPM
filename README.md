@@ -9,8 +9,9 @@ The following Python packages are required:
 -   [keras]() tested with version 3.4.1;
 -   [tensorflow]() tested with version 2.17.0;
 -   [jellyfish]() tested with version 0.9.0;
--   [Distance]() tested with version 0.1.3.
--   [pm4py]() tested with version 2.5.2.
+-   [Distance]() tested with version 0.1.3;
+-   [pm4py]() tested with version 2.5.2;
+-   [declare4py]() tested with version 2.2.0;
 -   [matplotlib](https://matplotlib.org/) tested with version 3.6.3;
 -   [numpy]() tested with version 1.26.4;
 -   [pandas]() tested with version 1.5.3;
@@ -29,11 +30,13 @@ The system has been tested with Python 3.10 After installing the requirements, p
 - `experiments_runner.py` is the main Python script for running the experiments;
 - `results_aggregator.py` is a Python script for aggregating the results of each dataset and presenting in a more 
   understandable format.
+- `plot_results.py` is a Python script for generating plots from the aggregated results.
   
 
 ## Running the code
 ### (1) Training
-To train a Neural Networks model: **LSTM**: `--model="LSTM"` or **transformer** `--model="keras_trans"` for a given dataset (event log), type: 
+To train a Neural Networks model: **LSTM**: `--model="LSTM"` or **transformer** `--model="keras_trans"` for a 
+given dataset (event log), type: 
 ```
 python run_experiments.py --log='helpdesk.xes' --model="keras_trans" --train
 ```
@@ -57,11 +60,25 @@ If you need to use a variant-based sampling split of training and testing datase
 python run_experiments.py --log='helpdesk.xes' --model="keras_trans" --train --use_variant_split
 ```
 ### (2) Evaluation
-To run the evaluation for a given (pretrained) dataset, you need to specify the prediction algorithm: baseline `--algo="baseline"` to select the best prediction or `--algo="beamsearch"` to use a [Beam Search](https://towardsdatascience.com/foundations-of-nlp-explained-visually-beam-search-how-it-works-1586b9849a24) algorithm:
+To run the evaluation for a given (pretrained) dataset, you need to specify the prediction algorithm: baseline `--algo="baseline"` 
+to select the best prediction 
+or `--algo="beamsearch"` to use a [Beam Search](https://towardsdatascience.com/foundations-of-nlp-explained-visually-beam-search-how-it-works-1586b9849a24) algorithm:
 
 ```
 python run_experiments.py --log='helpdesk.xes' --model="keras_trans" --algo="baseline" --evaluate
 ```
+Additionally, if you want to add the conformance checking of the Background Knowledge (BK) during the `beamsearch` algorithm 
+to optimize the evaluation process, you can use the 'BK_weight' option that enables you to set the importance of the BK:
+
+```
+python run_experiments.py --log='helpdesk.xes' --model="keras_trans" --algo="beamsearch" --evaluate --BK_weight 0.9
+```
+Moreover, the `--BK_end` option allows you to check the BK at the end of the prediction process.
+
+```
+python run_experiments.py --log='helpdesk.xes' --model="keras_trans" --algo="beamsearch" --evaluate --BK_end
+```
+
 if you want to minimise the prediction of redundant activities/resources, 
 you need to apply the probability reduction for repetitive activities/resources
 in a trace prefix by adding`--use_Prob_reduction`:

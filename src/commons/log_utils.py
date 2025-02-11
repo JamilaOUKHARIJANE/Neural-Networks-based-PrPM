@@ -71,6 +71,8 @@ class LogData:
                 test_log = test_log.dropna(subset=[self.res_name_key])
                 train_log = train_log.dropna(subset=[self.res_name_key])
                 self.log = pd.concat([train_log, test_log], axis=0, ignore_index=True)
+                print("nb of activities", len(self.log[self.act_name_key].unique()))
+                print("nb of resource", len(self.log[self.res_name_key].unique()))
             else:
                 self.log = pm4py.read_xes(str(log_path))[
                     [self.case_name_key, self.act_name_key, self.res_name_key, self.timestamp_key]]

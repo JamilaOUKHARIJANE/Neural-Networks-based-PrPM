@@ -13,7 +13,7 @@ def aggregate_results(log_path, alg,models_folder,beam_size=3, resource=False,ti
     average_length = []
     average_length_truth = []
     average_length_res = []
-    for fold in range(shared.folds):
+    for fold in range(2):#shared.folds):
         eval_algorithm = alg + "_cf" + "r"*resource + "t"*timestamp + "o"*outcome
         folder_path = shared.output_folder / models_folder / str(fold) / 'results' / eval_algorithm
         #print(f"fold {fold} - {eval_algorithm}")
@@ -99,7 +99,7 @@ if __name__ == "__main__":
                                      results[6], results[7], #results[8],
                                      #results[9], results[10], results[11]
                                      ])
-            '''for encoder in ["_One_hot","_Simple_categorical", "_Combined_Act_res","_Multi_Enc"]:
+            for encoder in ["_One_hot","_Simple_categorical", "_Combined_Act_res","_Multi_Enc"]:
                 results = []
                 for log in shared.log_list:
                     log_path = shared.log_folder / log
@@ -112,12 +112,12 @@ if __name__ == "__main__":
                     results.append(average_res_beamsearch)
                     results.append(predictedlength)
                 writer.writerow(["beamsearch", "bsize is 5", encoder.removeprefix("_"),
-                                     results[0], results[1], results[2],
-                                     results[3], results[4], results[5],
-                                     results[6], results[7], results[8],
+                                     results[0], results[1], #results[2],
+                                     results[3], results[4], #results[5],
+                                     results[6], results[7], #results[8],
                                      #results[9], results[10], results[11]
                                      ])
-            for encoder in ["_One_hot","_Simple_categorical", "_Combined_Act_res","_Multi_Enc"]:
+            '''for encoder in ["_One_hot","_Simple_categorical", "_Combined_Act_res","_Multi_Enc"]:
                 results = []
                 for log in shared.log_list:
                     log_path = shared.log_folder / log
@@ -154,7 +154,7 @@ if __name__ == "__main__":
                                      results[6], results[7], #results[8],
                                      #results[9], results[10], results[11]
                                      ])
-            '''for encoder in ["_One_hot","_Simple_categorical", "_Combined_Act_res","_Multi_Enc"]:
+            for encoder in ["_One_hot","_Simple_categorical", "_Combined_Act_res","_Multi_Enc"]:
                 results = []
                 for log in shared.log_list:
                     log_path = shared.log_folder / log
@@ -167,12 +167,12 @@ if __name__ == "__main__":
                     results.append(average_res_beamsearch)
                     results.append(predictedlength)
                 writer.writerow(["beamsearch with Declare BK", "bsize is 5", encoder.removeprefix("_"),
-                                     results[0], results[1], results[2],
-                                     results[3], results[4], results[5],
-                                     results[6], results[7], results[8],
+                                     results[0], results[1], #results[2],
+                                     results[3], results[4], #results[5],
+                                     results[6], results[7], #results[8],
                                      #results[9], results[10], results[11]
                                      ])
-            for encoder in ["_One_hot","_Simple_categorical", "_Combined_Act_res","_Multi_Enc"]:
+            '''for encoder in ["_One_hot","_Simple_categorical", "_Combined_Act_res","_Multi_Enc"]:
                 results = []
                 for log in shared.log_list:
                     log_path = shared.log_folder / log
