@@ -5,6 +5,7 @@ code more clear
 """
 from pathlib import Path
 
+test=""
 ascii_offset = 161
 beam_size = 3
 th_reduction_factor = 1

@@ -67,7 +67,7 @@ def evaluate_all(log_data: LogData, models_folder: str, alg: str, method_fitness
 
     # extract declare model
     bk_model = None
-    if shared.declare_BK:
+    if shared.declare_BK or shared.BK_end:
         bk_model = extract_Declare_bk_model(log_data.log_name.value)
     for fold in range(shared.folds):
         eval_algorithm = alg + "_cf" + "r"*resource + "t"*timestamp + "o"*outcome
@@ -80,7 +80,7 @@ def evaluate_all(log_data: LogData, models_folder: str, alg: str, method_fitness
         print(f"fold {fold} - {eval_algorithm}")
         if alg == "beamsearch":
             output_filename = folder_path / (f'{log_data.log_name.value}_beam{str(shared.beam_size)}_fold{str(fold)}_cluster{log_data.evaluation_prefix_start}'
-                                             f'{"_probability_reduction" * shared.useProb_reduction}{("_BK")* shared.declare_BK}.csv')
+                                             f'{"_probability_reduction" * shared.useProb_reduction}{("_BK")* shared.declare_BK}{("_BK_at_end")* shared.BK_end}.csv')
             print('beamsearch')
             model_filename = extract_last_model_checkpoint(log_data.log_name.value, models_folder, fold, 'CF' + 'R'*resource + 'O'*outcome)
             beamsearch_cf.run_experiments(log_data, compliant_traces, maxlen, predict_size, act_to_int,

@@ -11,13 +11,28 @@ from pm4py.objects.conversion.log import converter as log_converter
 from pm4py.statistics.variants.log.get import get_variants
 
 class LogName(Enum):
-    SEPSIS1 = 'sepsis_cases_1'
+    SEPSIS = 'Sepsis_cases'
     UBE = "Synthetic"
     HELPDESK = 'helpdesk'
     BPIC11 = "BPI2011"
-    BPIC13 = "BPI2013"
     BPIC12 = "BPI2012"
+    BPIC13 = "BPI2013"
+    BPIC13_In = "BPI2013_In"
+    BPIC13_OP = "BPI2013_OP"
+    BPIC13_CP = "BPI2013_CP"
+    BPIC15_1 = "BPIC15_1"
+    BPIC15_2 = "BPIC15_2"
+    BPIC15_3 = "BPIC15_3"
+    BPIC15_4 = "BPIC15_4"
+    BPIC15_5 = "BPI2015_5"
     BPIC17 = "BPI2017"
+    BPIC18 = "BPI2018"
+    BPIC19 = "BPIC19"
+    BPIC20_1 = "PrepaidTravelCost"
+    BPIC20_2 = "PermitLog"
+    BPIC20_3 = "RequestForPayment"
+    BPIC20_4 = "DomesticDeclarations"
+    BPIC20_5 = "InternationalDeclarations"
 
 class LogExt(Enum):
     CSV = '.csv'
@@ -52,7 +67,7 @@ class LogData:
     evaluation_prefix_start: int
     evaluation_prefix_end: int
 
-    def __init__(self, log_path: Path, use_variant_split=False):
+    def __init__(self, log_path: Path, use_variant_split=False, resource = False):
         file_name = log_path.name
         if file_name.endswith('.xes') or file_name.endswith('.xes.gz'):
             if file_name.endswith('.xes'):
@@ -64,15 +79,15 @@ class LogData:
 
             self._set_log_keys_and_ths()
             if shared.use_train_test_logs:
-                train_log = pm4py.read_xes(str(log_path).replace(".xes", "_train.xes"))[
-                    [self.case_name_key, self.act_name_key, self.res_name_key, self.timestamp_key]]
-                test_log = pm4py.read_xes(str(log_path).replace(".xes", "_test.xes"))[
-                    [self.case_name_key, self.act_name_key, self.res_name_key, self.timestamp_key]]
-                test_log = test_log.dropna(subset=[self.res_name_key])
-                train_log = train_log.dropna(subset=[self.res_name_key])
+                cols = [self.case_name_key, self.act_name_key, self.res_name_key, self.timestamp_key] if resource else [self.case_name_key, self.act_name_key, self.timestamp_key]
+                train_log = pm4py.read_xes(str(log_path).replace(".xes", "_train.xes"))[cols]
+                test_log = pm4py.read_xes(str(log_path).replace(".xes", f"_test{shared.test}.xes"))[cols]
+                if resource:
+                    test_log = test_log.dropna(subset=[self.res_name_key])
+                    train_log = train_log.dropna(subset=[self.res_name_key])
                 self.log = pd.concat([train_log, test_log], axis=0, ignore_index=True)
                 print("nb of activities", len(self.log[self.act_name_key].unique()))
-                print("nb of resource", len(self.log[self.res_name_key].unique()))
+                if resource: print("nb of resource", len(self.log[self.res_name_key].unique()))
             else:
                 self.log = pm4py.read_xes(str(log_path))[
                     [self.case_name_key, self.act_name_key, self.res_name_key, self.timestamp_key]]
@@ -150,7 +165,6 @@ class LogData:
                 start_timestamps = grouped[self.timestamp_key].min().reset_index()
                 start_timestamps = start_timestamps.sort_values(self.timestamp_key, ascending=True, kind='mergesort')
                 train_ids = list(start_timestamps[self.case_name_key])[:int(train_ratio * len(start_timestamps))]
-                #train_ids= trace_ids[: int(len(trace_ids) * train_ratio)]
                 test_ids = [trace for trace in trace_ids if trace not in train_ids]
             filterByKey = lambda keys: {x: dict_cv[x] for x in keys}
             dict_cv_train = filterByKey(trace_ids)
@@ -173,10 +187,11 @@ class LogData:
         check_new_act = list(testing_traces[self.act_name_key].unique())
         new_chars = [na for na in check_new_act if na not in act_chars]
         if new_chars: print("new activities un-found in the training set", new_chars)
-        chars_group = list(training_traces[self.res_name_key].unique())
-        check_new_group = list(testing_traces[self.res_name_key].unique())
-        new_chars_group = [na for na in check_new_group if na not in chars_group]
-        if new_chars_group: print("new resource un-found in the training set", new_chars_group)
+        if resource:
+            chars_group = list(training_traces[self.res_name_key].unique())
+            check_new_group = list(testing_traces[self.res_name_key].unique())
+            new_chars_group = [na for na in check_new_group if na not in chars_group]
+            if new_chars_group: print("new resource un-found in the training set", new_chars_group)
 
     def encode_log(self, resource: bool, timestamp: bool, outcome: bool):
         act_set = list(self.log[self.act_name_key].unique())
@@ -206,60 +221,85 @@ class LogData:
             
 
     def _set_log_keys_and_ths(self):
-        addit = '' if self.log_ext == LogExt.CSV else 'case:'
-
-        if self.log_name == LogName.UBE:
+        if self.log_ext == LogExt.XES:
             self.case_name_key = 'case:concept:name'
             self.act_name_key = 'concept:name'
             self.res_name_key = 'org:resource'
             self.timestamp_key = 'time:timestamp'
+
+        if self.log_name == LogName.UBE:
             self.evaluation_prefix_start = 3
             self.evaluation_prefix_end = 7
             self.compliance_th = 1.00
         elif self.log_name == LogName.HELPDESK:
             median =5
-            self.case_name_key = 'case:concept:name'
-            self.act_name_key = 'concept:name'
-            self.res_name_key = 'org:resource'
-            self.timestamp_key = 'time:timestamp'
             self.evaluation_prefix_start = median//2 - 1
             self.evaluation_prefix_end = median//2 + 2
             self.compliance_th = 1.00
         elif self.log_name == LogName.BPIC11:
             median = 92
-            self.case_name_key = 'case:concept:name'
-            self.act_name_key = 'concept:name'
-            self.res_name_key = 'org:resource'
-            self.timestamp_key = 'time:timestamp'
             self.evaluation_prefix_start = median//2 - 2
             self.evaluation_prefix_end = median//2 + 2
             self.compliance_th = 1.00
         elif self.log_name == LogName.BPIC12:
             median = 32
-            self.case_name_key = 'case:concept:name'
-            self.act_name_key = 'concept:name'
-            self.res_name_key = 'org:resource'
-            self.timestamp_key = 'time:timestamp'
             self.evaluation_prefix_start = median//2 - 2
             self.evaluation_prefix_end = median//2 + 2
             self.compliance_th = 1.00
         elif self.log_name == LogName.BPIC13:
             median = 4
-            self.case_name_key = 'case:concept:name'
-            self.act_name_key = 'concept:name'
-            self.res_name_key = 'org:resource'
-            self.timestamp_key = 'time:timestamp'
             self.evaluation_prefix_start = median//2 - 1
             self.evaluation_prefix_end = median//2 + 2
             self.compliance_th = 1.00
         elif self.log_name == LogName.BPIC17:
             median = 54
-            self.case_name_key = 'case:concept:name'
-            self.act_name_key = 'concept:name'
-            self.res_name_key = 'org:resource'
-            self.timestamp_key = 'time:timestamp'
             self.evaluation_prefix_start = median//2 - 2
-            self.evaluation_prefix_end = median//2 #+ 2
+            self.evaluation_prefix_end = median//2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.BPIC13_In:
+            median = 6
+            self.evaluation_prefix_start = median//2 - 2
+            self.evaluation_prefix_end = median//2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.BPIC13_CP:
+            median = 3
+            self.evaluation_prefix_start = median//2
+            self.evaluation_prefix_end = median//2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.SEPSIS:
+            median = 13
+            self.evaluation_prefix_start = median//2 - 2
+            self.evaluation_prefix_end = median//2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.BPIC15_1:
+            median = 15
+            self.evaluation_prefix_start = median//2 - 2
+            self.evaluation_prefix_end = median//2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.BPIC15_1:
+            median = 44
+            self.evaluation_prefix_start = median//2 - 2
+            self.evaluation_prefix_end = median//2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.BPIC15_2:
+            median = 54
+            self.evaluation_prefix_start = median//2 - 2
+            self.evaluation_prefix_end = median//2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.BPIC15_3:
+            median = 42
+            self.evaluation_prefix_start = median//2 - 2
+            self.evaluation_prefix_end = median//2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.BPIC15_4:
+            median = 44
+            self.evaluation_prefix_start = median//2 - 2
+            self.evaluation_prefix_end = median//2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.BPIC15_5:
+            median = 50
+            self.evaluation_prefix_start = median//2 - 2
+            self.evaluation_prefix_end = median//2 + 2
             self.compliance_th = 1.00
         else:
             raise RuntimeError(f"No settings defined for log: {self.log_name.value}.")

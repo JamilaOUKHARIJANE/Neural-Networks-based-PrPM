@@ -18,11 +18,17 @@ from Declare4Py.D4PyEventLog import D4PyEventLog
 from Declare4Py.ProcessMiningTasks.ConformanceChecking.MPDeclareResultsBrowser import MPDeclareResultsBrowser
 from Declare4Py.Utils.Declare.TraceStates import TraceState
 
-from src.commons.ConstraintChecker import ConstraintChecker
 from src.commons import shared_variables as shared
 from src.commons.log_utils import LogData
 from src.evaluation.Checkers import TraceDeclareAnalyzer
 from src.evaluation.create_event_log import convert_to_log
+from enum import Enum
+
+class ConstraintChecker(Enum):
+    SATISFIED = 1
+    POSSIBLY_SATISFIED = 0.66
+    POSSIBLY_VIOLATED = 0.33
+    VIOLATED = 0
 
 
 def prepare_encoded_data(log_data: LogData, resource: bool):
@@ -34,7 +40,6 @@ def prepare_encoded_data(log_data: LogData, resource: bool):
     act_chars.sort()
     target_act_chars = copy.copy(act_chars)
     target_act_chars.append('!')
-    #target_act_chars.sort()
 
     act_to_int = dict((c, i+1) for i, c in enumerate(act_chars))
     target_act_to_int = dict((c, i+1) for i, c in enumerate(target_act_chars))
@@ -131,7 +136,7 @@ def get_pn_fitness(bk_file: Path, method_fitness: str, log: pd.DataFrame, log_da
 def encode(crop_trace: pd.DataFrame, log_data: LogData,  maxlen: int, char_indices: Dict[str, int],
                       char_indices_group: Dict[str, int], resource: bool) -> np.ndarray:
     """
-    Onehot encoding of an ongoing trace (control-flow + resource)
+    encoding of an ongoing trace (control-flow + resource)
     """
     chars = list(char_indices.keys())
     if resource:
@@ -139,7 +144,7 @@ def encode(crop_trace: pd.DataFrame, log_data: LogData,  maxlen: int, char_indic
         sentence_group = ''.join(crop_trace[log_data.res_name_key].tolist())
         chars_group = list(char_indices_group.keys())
         if shared.One_hot_encoding:
-            num_features = len(chars) + len(chars_group) #+ 1
+            num_features = len(chars) + len(chars_group)
             x = np.zeros((1, maxlen, num_features), dtype=np.float32)
             leftpad = maxlen - len(sentence)
             for t, char in enumerate(sentence):
@@ -181,7 +186,7 @@ def encode(crop_trace: pd.DataFrame, log_data: LogData,  maxlen: int, char_indic
     else:
         sentence = ''.join(crop_trace[log_data.act_name_key].tolist())
         if shared.One_hot_encoding:
-            num_features = len(chars) #+ 1
+            num_features = len(chars)
             x = np.zeros((1, maxlen, num_features), dtype=np.float32)
             leftpad = maxlen - len(sentence)
             for t, char in enumerate(sentence):
@@ -197,7 +202,7 @@ def encode(crop_trace: pd.DataFrame, log_data: LogData,  maxlen: int, char_indic
 def repetitions(seq: str):
     r = re.compile(r"(.+?)\1+")
     for match in r.finditer(seq):
-        yield match.group(1), len(match.group(0)) / len(match.group(1)) #, indices
+        yield match.group(1), len(match.group(0)) / len(match.group(1))
 
 
 def reduce_loop_probability(prefix_seq):
@@ -224,7 +229,7 @@ def apply_reduction_probability(act_seq, res_seq, pred_act, pred_res, target_act
                                                      place_of_starting_symbol_res-1] / stop_symbol_probability_amplifier_current_res
     return pred_act, pred_res
 
-def get_beam_size(self, NodePrediction, current_prediction_premis, bk_model,weight, prefix_trace, prefix_trace_df,
+def get_beam_size(self, NodePrediction, current_prediction_premis, bk_model,weight, prefix_trace,
                   prediction, res_prediction, y_char, fitness,
                   target_ind_to_act, target_act_to_ind, target_ind_to_res, target_res_to_ind,
                   log_data, resource, beam_size):
@@ -270,7 +275,7 @@ def get_beam_size(self, NodePrediction, current_prediction_premis, bk_model,weig
             temp_res_prediction = None
             probability_this = np.sort(prediction)[len(prediction) - 1 - j]
 
-        predicted_row = prefix_trace_df.tail(1).copy()
+        predicted_row = prefix_trace.tail(1).copy()
         predicted_row.loc[:, log_data.act_name_key] = temp_prediction
         predicted_row.loc[:, log_data.res_name_key] = temp_res_prediction
         temp_cropped_trace_next = pd.concat([prefix_trace, predicted_row], axis=0)
@@ -299,9 +304,9 @@ def get_beam_size(self, NodePrediction, current_prediction_premis, bk_model,weig
 
 def compliance_checking(log_data, temp_prediction, temp_res_prediction, bk_model, prefix_trace, resource=False):
 
-    BK_result = np.log(1)
+    BK_result = 0
     completed = False
-    if temp_prediction == "!" or temp_res_prediction == "!":
+    if temp_prediction == "!" or (resource and temp_res_prediction == "!"):
         completed = True
         temp_prediction = "!"
         if resource:

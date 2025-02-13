@@ -27,7 +27,7 @@ class ExperimentRunner:
             self._run_single_experiment(log_path, alg, method_fitness, weight, resource, timestamp, outcome,model_folder)
 
     def _run_single_experiment(self, log_path, alg, method_fitness, weight, resource, timestamp, outcome,model_folder):
-        log_data = log_utils.LogData(log_path,self._use_variant_split)
+        log_data = log_utils.LogData(log_path,self._use_variant_split, resource)
         log_data.encode_log(resource, timestamp, outcome)
 
         trace_sizes = list(log_data.log.value_counts(subset=[log_data.case_name_key], sort=False))
@@ -105,7 +105,7 @@ if __name__ == '__main__':
                          alg = args.algo,
                          method_fitness = None,#"fitness_token_based_replay",
                          weight = w,
-                         resource = True,
+                         resource = False,
                          timestamp = False,
                          outcome = False,
                          model_folder= args.model)
