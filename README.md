@@ -1,8 +1,8 @@
-# Neural Networks-based Predictive process monitoring
-This repository contains the source code of a Neural Network-based predictive process monitoring system that provides:
+# Multi-attribute Predictive process monitoring
+This repository contains the source code of a Neuro-symbolic system that provides:
 - prediction of next activities of a process instance
 - prediction of next activities with allocated resources of a process instance 
-- prediction of a process instance outcome
+
 ## Requirements
 The following Python packages are required:
 
@@ -46,9 +46,9 @@ simply add`--one_hot_encoding`
 ```
 $ python run_experiments.py --log='helpdesk.xes' --model="keras_trans" --train --one_hot_encoding
 ```
-If you prefer to use Product-Index-based encoding, add`--product_index_based`
+If you prefer to use Product-Index-based encoding, add`--shrinked_index_based`
 ```
-$ python run_experiments.py --log='helpdesk.xes' --model="keras_trans" --train --product_index_based
+$ python run_experiments.py --log='helpdesk.xes' --model="keras_trans" --train --shrinked_index_based
 ```
 if you need to use Multi-Encoders, add`--multi_enc`
 ```
