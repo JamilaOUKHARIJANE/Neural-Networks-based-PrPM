@@ -5,7 +5,7 @@ code more clear
 """
 from pathlib import Path
 
-test=""
+version = "_mean"
 ascii_offset = 161
 beam_size = 3
 th_reduction_factor = 1
@@ -13,14 +13,13 @@ One_hot_encoding=False
 combined_Act_res = False
 useProb_reduction = False
 use_modulator = False
-use_train_test_logs = False
-BK_end = False
+use_train_test_logs = True
 declare_BK = False
+BK_end = False
 root_folder = Path.cwd() #/ 'implementation_real_logs'
 data_folder = root_folder / 'data'
 input_folder = data_folder / 'input'
 output_folder = data_folder / 'output'
-output_folder2 = data_folder / 'output2'
 
 declare_folder = input_folder / 'declare_models'
 xes_log_folder =  input_folder / 'log_xes'
@@ -32,17 +31,18 @@ folds = 3
 train_ratio = 0.8
 variant_split = 0.9
 validation_split = 0.2
-
+iteration = 0
 
 log_list = [
-   'helpdesk.xes',
-    'BPI2012.xes' ,
-    'BPI2013.xes',
-    'BPI2017.xes'
+    'helpdesk.xes',
+   'Sepsis_cases.xes',
+   'BPI2013.xes',
+    'DomesticDeclarations.xes',
+   'InternationalDeclarations.xes',
+    'PrepaidTravelCost.xes',
+   'RequestForPayment.xes',
+     'PermitLog.xes',
+
+
 ]
 
-method_marker = {'baseline': 'x', 'beamsearch (beam size = 3)': '1', 'beamsearch (beam size = 5)': '.', 'beamsearch (beam size = 10)': '',
-                 'beamsearch with BK (beam size = 10)': '+', 'beamsearch with BK (beam size = 5)':'*', 'frequency':'+', 'beamsearch with BK (beam size = 3)': '.'}
-method_color = {'baseline': 'mediumpurple', 'beamsearch (beam size = 3)': 'deepskyblue', 'beamsearch (beam size = 5)': 'orange',
-                'beamsearch (beam size = 10)': 'purple', 'beamsearch with BK (beam size = 10)': 'brown',  'beamsearch with BK (beam size = 5)':'red',
-                'beamsearch with BK (beam size = 3)': 'green'}

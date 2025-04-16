@@ -10,7 +10,7 @@ import itertools
 import re
 from pathlib import Path
 from typing import Dict
-
+import operator
 import numpy as np
 import pm4py
 import pandas as pd
@@ -191,7 +191,7 @@ def encode(crop_trace: pd.DataFrame, log_data: LogData,  maxlen: int, char_indic
             leftpad = maxlen - len(sentence)
             for t, char in enumerate(sentence):
                 if char in chars:
-                    x[0, t + leftpad, char_indices[char]] = 1
+                    x[0, t + leftpad, char_indices[char]-1] = 1
         else:
             num_features = maxlen
             x = np.zeros((1, num_features), dtype=np.float32)
@@ -253,10 +253,33 @@ def get_beam_size(self, NodePrediction, current_prediction_premis, bk_model,weig
                 prob_matrix[res_pred_idx][act_pred_idx] = (prob_matrix[res_pred_idx][act_pred_idx] * 0.5 * (1-weight)) + (BK_res * weight)
         sorted_prob_matrix = np.argsort(prob_matrix, axis=None)[::-1]
     else:
-        if shared.declare_BK and not shared.BK_end:
-            BK_res = [compliance_checking(log_data, target_ind_to_act[act_pred_idx + 1], None,
-                                          bk_model, prefix_trace) for act_pred_idx in range(len(prediction))]
-            prediction = (np.log(prediction) * (1-weight)) + (BK_res * weight)
+        if shared.declare_BK:
+            BK_res = np.zeros(len(prediction), dtype=np.float32)
+            for act_ped_index in prediction:
+                temp_prediction = target_ind_to_act[act_ped_index + 1]
+                BK_res [act_ped_index] = compliance_checking(log_data, temp_prediction, None, bk_model, prefix_trace,
+                                             resource)
+            prediction = [(np.log(a) * (1-weight)) + (b * weight) for a, b in zip(prediction, BK_res)]
+        elif shared.prob_declare_BK:
+            prefix_act = [log_data.act_enc_mapping[index] for index in act_prefix]
+            results = bk_model.processPrefix(prefix_act, shared.aggregationMethod)
+            BK_res = np.zeros(len(prediction), dtype=np.float32)
+            target_acts = [log_data.act_enc_mapping[target_ind_to_act[indice]] if target_ind_to_act[
+                                                                                      indice] != '!'  # list of activities
+                           else 'False'  # End symbol
+                           for indice in range(1, len(prediction) + 1)
+                           ]
+            for event, score in sorted(results.items(), key=operator.itemgetter(1), reverse=True):
+                if event is False:  # End symbol
+                    BK_res[target_acts.index('False')] = round(score, 3)
+                elif event is not True:  # Activities present in the declare model
+                    BK_res[target_acts.index(event)] = round(score, 3)
+                else:  # if event is True: Activities not present in the declare model
+                    act_indices = [i for i, act in enumerate(target_acts) if
+                                   act not in results.keys() and act != 'False']
+                    for idx in act_indices:
+                        BK_res[idx] = round(score, 3)
+            prediction = [(np.log(a) * (1 - weight)) + (b * weight) for a, b in zip(prediction, BK_res)]
         else:
             prediction = np.log(prediction)
 
@@ -341,9 +364,9 @@ def compliance_checking(log_data, temp_prediction, temp_res_prediction, bk_model
         for result in conf_check_res.model_check_res[0]:
             if result.state == TraceState.POSSIBLY_SATISFIED.value:
                 results.append(ConstraintChecker.POSSIBLY_SATISFIED.value)
-            elif result.state == TraceState.SATISFIED:
+            elif result.state == TraceState.SATISFIED.value:
                 results.append(ConstraintChecker.SATISFIED.value)
-            elif result.state == TraceState.POSSIBLY_VIOLATED:
+            elif result.state == TraceState.POSSIBLY_VIOLATED.value:
                 results.append(ConstraintChecker.POSSIBLY_VIOLATED.value)
         BK_result = np.log(np.mean(results))
     return BK_result

@@ -1,6 +1,7 @@
 import argparse
 import statistics as stat
 import tensorflow as tf
+from numba.cuda import gpus
 
 from src.commons import log_utils, shared_variables as shared
 from src.evaluation import evaluation
@@ -18,10 +19,15 @@ class ExperimentRunner:
         print('Use variant-based split:', self._use_variant_split)
 
     def run_experiments(self, log_list, alg, method_fitness, weight, resource, timestamp, outcome, model_folder):
-        config = tf.compat.v1.ConfigProto(intra_op_parallelism_threads=4, inter_op_parallelism_threads=4,
-                                          allow_soft_placement=True)
-        session = tf.compat.v1.Session(config=config)
-        tf.compat.v1.keras.backend.set_epsilon(session)
+        gpus = tf.config.list_physical_devices('GPU')
+        if gpus:
+            try:
+                # Set memory growth for each GPU to avoid consuming all memory upfront
+                for gpu in gpus:
+                    tf.config.experimental.set_memory_growth(gpu, True)
+                print("GPUs detected and memory growth enabled.")
+            except RuntimeError as e:
+                print(e)
         for log_name in log_list:
             log_path = shared.log_folder / log_name
             self._run_single_experiment(log_path, alg, method_fitness, weight, resource, timestamp, outcome,model_folder)
@@ -65,7 +71,7 @@ if __name__ == '__main__':
     # encoding configuration
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--one_hot_encoding', default=False, action='store_true', help='use one-hot encoding')
-    group.add_argument('--product_index_based', default=False, action='store_true', help='encode all activities resources combination')
+    group.add_argument('--shrinked_index_based', default=False, action='store_true', help='encode all activities resources combination')
     group.add_argument('--multi_enc', default=False, action='store_true',help='use multi-encoders')
 
     group = parser.add_mutually_exclusive_group()
@@ -81,7 +87,7 @@ if __name__ == '__main__':
     shared.BK_end = args.BK_end
     shared.use_train_test_logs=args.use_train_test_logs
     shared.One_hot_encoding=args.one_hot_encoding
-    shared.combined_Act_res = args.product_index_based
+    shared.combined_Act_res = args.shrinked_index_based
     shared.useProb_reduction = args.use_Prob_reduction
     shared.use_modulator = args.multi_enc
     if args.beam:
@@ -105,7 +111,7 @@ if __name__ == '__main__':
                          alg = args.algo,
                          method_fitness = None,#"fitness_token_based_replay",
                          weight = w,
-                         resource = False,
+                         resource = True,
                          timestamp = False,
                          outcome = False,
                          model_folder= args.model)

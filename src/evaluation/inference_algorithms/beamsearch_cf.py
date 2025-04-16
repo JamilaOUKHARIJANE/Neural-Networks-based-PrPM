@@ -2,7 +2,6 @@
 from __future__ import division
 import csv
 from pathlib import Path
-import pdb
 from queue import PriorityQueue
 import distance
 import numpy as np
@@ -32,7 +31,7 @@ def run_experiments(log_data: LogData, compliant_traces: pd.DataFrame, maxlen, p
             self.cropped_line = ''.join(crop_trace[log_data.act_name_key].tolist())
             if resource:
                 self.cropped_line_group = ''.join(crop_trace[log_data.res_name_key].tolist())
-            if self.cropped_line[-1] != '!' or (resource and self.cropped_line_group [-1] != '!') :
+            if (not resource and self.cropped_line[-1] != '!') or (resource and self.cropped_line_group [-1] != '!' and self.cropped_line[-1] != '!') :
                 self.model_input = encode(crop_trace, log_data, maxlen, char_indices, char_indices_group, resource)
             self.probability_of = probability_of
 
@@ -139,7 +138,7 @@ def run_experiments(log_data: LogData, compliant_traces: pd.DataFrame, maxlen, p
                                 prefix_trace = prefix_trace[:-1]
                                 if resource:
                                     BK_res = compliance_checking(log_data, child_node.cropped_line[-1],
-                                                         child_node.cropped_line_group[-1],bk_model, prefix_trace,resource)
+                                                         child_node.cropped_line_group[-1], bk_model, prefix_trace,resource)
                                 else:
                                     BK_res = compliance_checking(log_data, child_node.cropped_line[-1],
                                                          None,bk_model, prefix_trace,resource)
@@ -153,7 +152,7 @@ def run_experiments(log_data: LogData, compliant_traces: pd.DataFrame, maxlen, p
                             else:
                                 if shared.BK_end:
                                     if BK_res == np.NINF:  # violated: continue the search
-                                        if k == min(shared.beam_size, len(visited_nodes.queue)) -1:
+                                        if all(violated_nodes.get(i) for i in range(k)) and k == min(shared.beam_size, len(visited_nodes.queue)) -1:
                                             visited_nodes = PriorityQueue()
                                             child_node = violated_nodes.get(0)
                                             is_violated = True
@@ -243,7 +242,6 @@ def run_experiments(log_data: LogData, compliant_traces: pd.DataFrame, maxlen, p
                         
                     visited_nodes = frontier_nodes
                     frontier_nodes = PriorityQueue()
-
                 predicted = child_node.cropped_line[prefix_size:-1]
                 if resource:
                     predicted_group = child_node.cropped_line_group[prefix_size:-1]

@@ -2,9 +2,11 @@
 from __future__ import print_function, division
 
 import itertools
+import pdb
 import copy
 import os
 import numpy as np
+from hvplot import output
 from keras.src.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from keras.src.layers import LSTM, Dense, Input, Dropout, BatchNormalization, GlobalMaxPooling1D, Embedding, Concatenate
 from keras.src.models import Model
@@ -110,6 +112,7 @@ def _build_model(max_len, num_features, target_chars, target_chars_group, models
     if not resource and not outcome:
         model = Model(main_input, [activity_output])
         model.compile(loss={'act_output': 'categorical_crossentropy'}, optimizer=opt)
+
     elif resource and not outcome:
         if shared.use_modulator:
             model = Model(inputs=[act_input, group_input], outputs =[activity_output, group_output])
@@ -211,7 +214,7 @@ def train(log_data: LogData, models_folder: str, resource: bool, outcome: bool):
 
         print('Vectorization...')
         if shared.One_hot_encoding:
-            num_features = len(chars)
+            num_features = len(chars) + 1
             x = np.zeros((len(sentences),maxlen, num_features), dtype=np.float32)
         else:
             num_features = maxlen
@@ -228,6 +231,7 @@ def train(log_data: LogData, models_folder: str, resource: bool, outcome: bool):
                     for c in chars:
                         if c == char:
                             x[i, t + leftpad, act_to_int[c] - 1] = 1
+                    x[i, t + leftpad, len(chars)] = t + 1
                 else:
                     x[i, t] = act_to_int[char]
             for c in target_chars:
@@ -237,6 +241,7 @@ def train(log_data: LogData, models_folder: str, resource: bool, outcome: bool):
                     y_a[i, target_act_to_int[c] - 1] = softness / (len(target_chars) - 1)
 
         for fold in range(shared.folds):
+
             model = _build_model(maxlen, num_features, target_chars, target_chars_group, models_folder, resource, outcome)
             checkpoint_name = create_checkpoints_path(log_data.log_name.value, models_folder, fold, 'CF')
             _train_model(model, checkpoint_name, x, y_a, y_o, y_g)
@@ -266,7 +271,7 @@ def train(log_data: LogData, models_folder: str, resource: bool, outcome: bool):
         print('Num. of training sequences:', len(sentences))
         print('Vectorization...')
         if shared.One_hot_encoding:
-            num_features = len(chars) + len(chars_group)
+            num_features = len(chars) + len(chars_group) #+ 1
             x = np.zeros((len(sentences),maxlen, num_features), dtype=np.float32)
         else:
             if shared.combined_Act_res:
@@ -302,6 +307,7 @@ def train(log_data: LogData, models_folder: str, resource: bool, outcome: bool):
                         x[i, t + leftpad, act_to_int[char] -1] = 1
                     if t < len(sentence_group) and sentence_group[t] in chars_group:
                         x[i, t + leftpad, len(chars) + res_to_int[sentence_group[t]] - 1] = 1
+                    #x[i, t + leftpad, num_features - 1] = t + 1
                 elif shared.use_modulator:
                     x_a[i, t] = act_to_int[char]
                     x_g[i,t] = res_to_int[sentence_group[t]]
@@ -345,7 +351,7 @@ def train(log_data: LogData, models_folder: str, resource: bool, outcome: bool):
         print('Vectorization...')
 
         if shared.One_hot_encoding:
-            num_features = len(chars)
+            num_features = len(chars) + 1
             x = np.zeros((len(sentences), maxlen, num_features), dtype=np.float32)
         else:
             num_features = maxlen
@@ -362,6 +368,7 @@ def train(log_data: LogData, models_folder: str, resource: bool, outcome: bool):
                     for c in chars:
                         if c == char:
                             x[i, t + leftpad, act_to_int[c] -1 ] = 1
+                    x[i, t + leftpad, len(chars)] = t + 1
                 else:
                     x[i, t] = act_to_int[char]
 
@@ -392,7 +399,7 @@ def train(log_data: LogData, models_folder: str, resource: bool, outcome: bool):
         print('Num. of training sequences:', len(sentences))
         print('Vectorization...')
         if shared.One_hot_encoding:
-            num_features = len(chars) + len(chars_group)
+            num_features = len(chars) + len(chars_group) + 1
             x = np.zeros((len(sentences),maxlen, num_features), dtype=np.float32)
         else:
             if shared.combined_Act_res:
@@ -421,6 +428,7 @@ def train(log_data: LogData, models_folder: str, resource: bool, outcome: bool):
                         x[i, t + leftpad, act_to_int[char] - 1] = 1
                     if t < len(sentence_group) and sentence_group[t] in chars_group:
                         x[i, t + leftpad, len(chars) + res_to_int[sentence_group[t]] - 1] = 1
+                    x[i, t + leftpad, num_features - 1] = t + 1
                 else:
                     if shared.combined_Act_res:
                         x[i, t] = target_to_int[char + sentence_group[t]]

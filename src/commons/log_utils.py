@@ -81,11 +81,12 @@ class LogData:
             if shared.use_train_test_logs:
                 cols = [self.case_name_key, self.act_name_key, self.res_name_key, self.timestamp_key] if resource else [self.case_name_key, self.act_name_key, self.timestamp_key]
                 train_log = pm4py.read_xes(str(log_path).replace(".xes", "_train.xes"))[cols]
-                test_log = pm4py.read_xes(str(log_path).replace(".xes", f"_test{shared.test}.xes"))[cols]
+                test_log = pm4py.read_xes(str(log_path).replace(".xes", f"_test.xes"))[cols]
                 if resource:
                     test_log = test_log.dropna(subset=[self.res_name_key])
                     train_log = train_log.dropna(subset=[self.res_name_key])
-                self.log = pd.concat([train_log, test_log], axis=0, ignore_index=True)
+                test_log_original = pm4py.read_xes(str(log_path).replace(".xes", f"_test_original.xes"))[cols]
+                self.log = pd.concat([train_log, test_log_original], axis=0, ignore_index=True)
                 print("nb of activities", len(self.log[self.act_name_key].unique()))
                 if resource: print("nb of resource", len(self.log[self.res_name_key].unique()))
             else:
@@ -300,6 +301,31 @@ class LogData:
             median = 50
             self.evaluation_prefix_start = median//2 - 2
             self.evaluation_prefix_end = median//2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.BPIC20_1:
+            median = 8
+            self.evaluation_prefix_start = median // 2 - 2
+            self.evaluation_prefix_end = median // 2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.BPIC20_2:
+            median = 11
+            self.evaluation_prefix_start = median // 2 - 2
+            self.evaluation_prefix_end = median // 2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.BPIC20_3:
+            median = 5
+            self.evaluation_prefix_start = median // 2 - 1
+            self.evaluation_prefix_end = median // 2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.BPIC20_4:
+            median = 5
+            self.evaluation_prefix_start = median // 2 - 1
+            self.evaluation_prefix_end = median // 2 + 2
+            self.compliance_th = 1.00
+        elif self.log_name == LogName.BPIC20_5:
+            median = 10
+            self.evaluation_prefix_start = median // 2 - 2
+            self.evaluation_prefix_end = median // 2 + 2
             self.compliance_th = 1.00
         else:
             raise RuntimeError(f"No settings defined for log: {self.log_name.value}.")

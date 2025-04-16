@@ -109,41 +109,45 @@ def add_plot(axs, dataset, metric, results,encoder):
     return handles, labels
 
 def plot_results(dataset_results,prefix_length):
-    for metric in ["Damerau-Levenshtein Acts", "Damerau-Levenshtein Resources"]:
+    for metric in ["Damerau-Levenshtein Acts"]:#, "Damerau-Levenshtein Resources"]:
         folder_path = Path.cwd() / 'evaluation plots' / metric
         if not Path.exists(folder_path):
             Path.mkdir(folder_path, parents=True)
 
-        f, ax = plt.subplots(8, 4, figsize=(16, 32))
-        titles = ["One-hot", "Index-based", "Product Index-based", "Multi-Enc"]
+        f, ax = plt.subplots(4, 4, figsize=(16, 16))
+        titles = ["Activity", "Resource"]
+        k=0
         for i, dataset in enumerate(dataset_results.keys()):
             if i % 2 == 0:
-                group = [ax[i][0], ax[i][1], ax[i+1][0], ax[i+1][1]]
+                group = [ax[i-k][0], ax[i-k][1]]
             else:
-                group = [ax[i-1][2], ax[i-1][3], ax[i][2], ax[i][3]]
-            for j, (encoder, subplot) in enumerate(zip(dataset_results[dataset].keys(), group)):
+                group = [ax[i-1-k][2], ax[i-1-k][3]]
+                k = k + 1
+            for j, subplot in enumerate(group):
+                encoder=list(dataset_results[dataset].keys())[0]
                 results = dataset_results[dataset][encoder]
+                if j != 0:
+                    metric = "Damerau-Levenshtein Resources"
+                else:
+                    metric = "Damerau-Levenshtein Acts"
                 subplot.set_title(titles[j], fontsize=12)#, pad=15)
                 subplot.set_xlabel('Prefix length')#, labelpad=15)
                 subplot.set_ylabel(f'Avg. {metric}')#, labelpad=20)
-                if j==0:
-                    handles, labels = add_plot(subplot, dataset, metric, results, encoder)
-                else:
-                    handles, _ = add_plot(subplot, dataset, metric, results, encoder)
+                handles, labels = add_plot(subplot, dataset, metric, results, encoder)
                 subplot.grid()
-            dataset='Sepsis' if dataset=='Sepsis_cases' else dataset
+            dataset='Sepsis' if dataset == 'Sepsis_cases' else dataset
             group[0].set_title(dataset, fontsize=16, fontweight="bold", loc="center", pad=20)
         plt.tight_layout()#rect=[0, 0.15, 1, 0.6])
-        f.subplots_adjust(top=0.96, bottom=0.05,hspace=0.4, wspace=0.3)
+        f.subplots_adjust(top=0.96, bottom=0.11,hspace=0.4, wspace=0.3)
         # Create the legend
-        legend = f.legend(labels=labels, title="Method", bbox_to_anchor=(0.5, 0.01), loc="lower center",
+        legend = f.legend(labels=labels, title="Method:", bbox_to_anchor=(0.5, 0.01), loc="lower center",
                           ncol=3, borderaxespad=0., title_fontsize='large', fontsize='large')
 
         # Set the title font weight to bold
         legend.get_title().set_fontweight('bold')
 
         # Save the figure
-        title = f"average_{metric}_similarity_results"
+        title = f"average_similarity_results_One_hot"
         plt.savefig(os.path.join(folder_path, f'{title}.pdf'))
         plt.close()
 
@@ -156,7 +160,7 @@ def prepare_data():
         evaluation_prefix_start = getprefix_start(log_path)
         df = pd.DataFrame()
         results_enc = {}
-        for encoder in ["_One_hot","_Simple_categorical", "_Combined_Act_res","_Multi_Enc"]:
+        for encoder in ["_One_hot"]:#,"_Simple_categorical", "_Combined_Act_res","_Multi_Enc"]:
             results = {}
             if encoder == "_One_hot":
                 try:
