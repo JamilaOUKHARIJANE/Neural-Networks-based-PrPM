@@ -9,10 +9,10 @@ import pandas as pd
 import numpy as np
 import pm4py
 
-from Preprocessing.create_benchmarks import remainTimeOrClassifBenchmark
-from Preprocessing.categ_mapping_mv import missing_val_cat_mapping
-from Preprocessing.prefix_suffix_creation import construct_PrefSuff_dfs_pipeline
-from Preprocessing.treat_numericals import preprocess_numericals
+from create_benchmarks import remainTimeOrClassifBenchmark
+from categ_mapping_mv import missing_val_cat_mapping
+from prefix_suffix_creation import construct_PrefSuff_dfs_pipeline
+from treat_numericals import preprocess_numericals
 import os
 import pickle 
 

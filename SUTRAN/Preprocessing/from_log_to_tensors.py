@@ -7,8 +7,8 @@ these into tensors.
 import os 
 import numpy as np 
 import pandas as pd 
-from Preprocessing.dataframes_pipeline import main_dataframe_pipeline
-from Preprocessing.tensor_creation import generate_tensordata_train_test
+from dataframes_pipeline import main_dataframe_pipeline
+from tensor_creation import generate_tensordata_train_test
 
 
 def log_to_tensors(log, 

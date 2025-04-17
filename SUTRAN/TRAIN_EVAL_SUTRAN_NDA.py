@@ -46,7 +46,7 @@ def load_checkpoint(model, path_to_checkpoint, train_or_eval, lr):
         training. 
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # device = torch.device('cpu')
+    #device = torch.device('cpu')
     print(device)
 
     if (train_or_eval!= 'train') and (train_or_eval!= 'eval'):
@@ -121,12 +121,32 @@ def train_eval(log_name,
     cardinality_list_suffix = load_dict(temp_path)[0]
     cardinality_list_suffix_res = load_dict(temp_path)[1]
 
+    temp_string = log_name + '_num_cols_dict.pkl'
+    temp_path = os.path.join(log_name, temp_string)
+    # To retrieve the number of numerical featrues in the prefix and suffix events respectively 
+    num_cols_dict = load_dict(temp_path)
+
     temp_string = log_name + '_cat_cols_dict.pkl'
     temp_path = os.path.join(log_name, temp_string)
     cat_cols_dict = load_dict(temp_path)
 
+    temp_string = log_name + '_train_means_dict.pkl'
+    temp_path = os.path.join(log_name, temp_string)
+    train_means_dict = load_dict(temp_path)
+
+    temp_string = log_name + '_train_std_dict.pkl'
+    temp_path = os.path.join(log_name, temp_string)
+
+    train_std_dict = load_dict(temp_path)
+
+    mean_std_ttne = [train_means_dict['timeLabel_df'][0], train_std_dict['timeLabel_df'][0]]
+    mean_std_tsp = [train_means_dict['suffix_df'][1], train_std_dict['suffix_df'][1]]
+    mean_std_tss = [train_means_dict['suffix_df'][0], train_std_dict['suffix_df'][0]]
     # mean_std_tss_pref = [train_means_dict['prefix_df'][5], train_std_dict['prefix_df'][5]]
     # mean_std_tsp_pref = [train_means_dict['prefix_df'][6], train_std_dict['prefix_df'][6]]
+    mean_std_rrt = [train_means_dict['timeLabel_df'][1], train_std_dict['timeLabel_df'][1]]
+    num_numericals_pref = len(num_cols_dict['prefix_df'])
+    num_numericals_suf = len(num_cols_dict['suffix_df'])
 
     num_categoricals_pref, num_categoricals_suf = len(cat_cols_dict['prefix_df']), len(cat_cols_dict['suffix_df'])
 
@@ -139,14 +159,14 @@ def train_eval(log_name,
     prefix_embedding = False
     layernorm_embeds = True
     outcome_bool = False
-    remaining_runtime_head = False
+    remaining_runtime_head = True
     # Creating auxiliary bools 
     only_rrt = (not outcome_bool) & remaining_runtime_head
     only_out = outcome_bool & (not remaining_runtime_head)
     both_not = (not outcome_bool) & (not remaining_runtime_head)
     both = outcome_bool & remaining_runtime_head
     log_transformed = False
-    num_target_tens = 2
+    num_target_tens = 4
 
     dropout = 0.2
     batch_size = 128
@@ -178,8 +198,8 @@ def train_eval(log_name,
 
     test_dataset = (test_dataset[num_categoricals_pref-1], ) + (test_dataset[num_categoricals_pref][:, :, tss_index:exclusive_bound],) + test_dataset[num_categoricals_pref+1:]
 
-    val_dataset = (val_dataset[num_categoricals_pref-1], ) + (val_dataset[num_categoricals_pref][:, :, tss_index:exclusive_bound],) + val_dataset[num_categoricals_pref+1:]
-    '''
+    val_dataset = (val_dataset[num_categoricals_pref-1], ) + (val_dataset[num_categoricals_pref][:, :, tss_index:exclusive_bound],) + val_dataset[num_categoricals_pref+1:]'''
+
     # Creating TensorDataset for the training set 
     train_dataset = TensorDataset(*train_dataset)
 
@@ -233,7 +253,7 @@ def train_eval(log_name,
     lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=decay_factor)
 
     
-    # Training procedure 
+    # Training procedure
     from SuTraN.train_procedure import train_model
     start_epoch = 0
     num_epochs = 100 #200
@@ -251,6 +271,10 @@ def train_eval(log_name,
                 batch_interval, 
                 backup_path, 
                 2, # num_categoricals_pref,
+                mean_std_ttne, 
+                mean_std_tsp, 
+                mean_std_tss, 
+                mean_std_rrt, 
                 batch_size, 
                 patience=24,
                 lr_scheduler_present=True, 
@@ -281,9 +305,11 @@ def train_eval(log_name,
     df = pd.read_csv(final_results_path)
     dl_col = 'Activity suffix: 1-DL (validation)'
     dl_res_col = 'Resource suffix: 1-DL (validation)'
+    rrt_col = 'RRT - mintues MAE validation'
+    df['rrt_rank_val'] = df[rrt_col].rank(method='min').astype(int)
     df['dl_rank_val'] = df[dl_col].rank(method='min', ascending=False).astype(int)
     df['dl_res_rank_val'] = df[dl_res_col].rank(method='min', ascending=False).astype(int)
-    df['summed_rank_val'] = df['dl_rank_val']+df['dl_res_rank_val']
+    df['summed_rank_val'] = df['rrt_rank_val'] + df['dl_rank_val']+df['dl_res_rank_val']
 
     # Retrieving the row with the best general performance 
     row_with_lowest_loss = df.loc[df['summed_rank_val'].idxmin()]
@@ -311,36 +337,44 @@ def train_eval(log_name,
                                  remaining_runtime_head, 
                                  outcome_bool, 
                                  2, # num_categoricals_pref,
+                                 mean_std_ttne, 
+                                 mean_std_tsp, 
+                                 mean_std_tss, 
+                                 mean_std_rrt, 
                                  results_path=results_path, 
                                  val_batch_size=4096)
     
 
+    # Retrieving the different metrics 
+    # TTNE MAE metrics
+    # avg_MAE1_stand, avg_MAE1_seconds, avg_MAE1_minutes, avg_MAE2_stand, avg_MAE2_seconds, avg_MAE2_minutes = inf_results[:6]
+    avg_MAE_ttne_stand, avg_MAE_ttne_minutes = inf_results[:2]
     # # Inference Cross Entropy Activity Suffix prediction
     # avg_inference_CE = inf_results[6]
     # Average Normalized Damerau-Levenshtein distance Activity Suffix 
     # prediction
-    avg_dam_lev = inf_results[0]
-    avg_dam_lev_res = inf_results[1]
+    avg_dam_lev = inf_results[2]
+    avg_dam_lev_res = inf_results[3]
 
 
     # Percentage of validation instances for which the END token was 
     # predicted too early. 
-    perc_too_early = inf_results[2]
+    perc_too_early = inf_results[4]
     # Percentage of validation instances for which the END token was 
     # predicted too late. 
-    perc_too_late = inf_results[3]
+    perc_too_late = inf_results[5]
     # Percentage of validation instances for which the END token was 
     # predicted at the right moment. 
-    perc_correct = inf_results[4]
+    perc_correct = inf_results[6]
     # Mean absolute lenght difference between predicted and actual 
     # suffix. 
-    mean_absolute_length_diff = inf_results[5]
+    mean_absolute_length_diff = inf_results[7]
     # Avg num events that END token was predicted too early, averaged 
     # over all instances for which END was predicted too early. 
-    mean_too_early = inf_results[6]
+    mean_too_early = inf_results[8]
     # Avg num events that END token was predicted too late, averaged 
     # over all instances for which END was predicted too late. 
-    mean_too_late = inf_results[7]
+    mean_too_late = inf_results[9]
 
     
     if only_rrt:
@@ -369,12 +403,18 @@ def train_eval(log_name,
         # AUC-PR outcome prediction
         auc_pr = inf_results[14]
 
+    # Printing averaged results 
+    print("Avg MAE TTNE prediction validation set: {} (standardized) ; {} (minutes)'".format(avg_MAE_ttne_stand, avg_MAE_ttne_minutes))
+    # print("Avg MAE Type 2 TTNE prediction validation set: {} (standardized) ; {} (minutes)'".format(avg_MAE2_stand, avg_MAE2_minutes))
+    # print("Avg Cross Entropy acitivty suffix prediction validation set: {}".format(avg_inference_CE))
     print("Avg 1-(normalized) DL distance activity suffix prediction validation set: {}".format(avg_dam_lev))
     print("Avg 1-(normalized) DL distance resource suffix prediction validation set: {}".format(avg_dam_lev_res))
     print("Percentage of suffixes predicted to END: too early - {} ; right moment - {} ; too late - {}".format(perc_too_early, perc_correct, perc_too_late))
     print("Too early instances - avg amount of events too early: {}".format(mean_too_early))
     print("Too late instances - avg amount of events too late: {}".format(mean_too_late))
     print("Avg absolute amount of events predicted too early / too late: {}".format(mean_absolute_length_diff))
+    if remaining_runtime_head: 
+        print("Avg MAE RRT prediction validation set: {} (standardized) ; {} (minutes)'".format(avg_MAE_stand_RRT, avg_MAE_minutes_RRT))
     if outcome_bool:
         print("Avg BCE outcome prediction validation set: {}".format(avg_BCE_out))
         print("AUC-ROC outcome prediction validation set: {}".format(auc_roc))
@@ -382,8 +422,10 @@ def train_eval(log_name,
 
     # Retrieving and storing dictionary of the metrics averaged over all 
     # test set instances (prefix-suffix pairs)
-    avg_results_dict = {"DL sim" : avg_dam_lev,
-                        "DL sim res": avg_dam_lev_res}
+    avg_results_dict = {"MAE TTNE minutes" : avg_MAE_ttne_minutes, 
+                        "DL sim" : avg_dam_lev,
+                        "DL sim res": avg_dam_lev_res,
+                        "MAE RRT minutes" : avg_MAE_minutes_RRT}
     path_name_average_results = os.path.join(results_path, 'averaged_results.pkl')
 
     
